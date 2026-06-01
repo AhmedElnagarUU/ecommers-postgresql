@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  /* Mintlify Color Palette */
+  --color-mintlify-bg: #0A0F16;
+  --color-mintlify-bg-dark: #070B10;
+  --color-mintlify-sidebar: #0F141D;
+  --color-mintlify-accent: #00D097;
+  --color-mintlify-accent-glow: #00D09730;
+  --color-mintlify-accent-dark: #00A076;
+  --color-mintlify-text: #E6E8EA;
+  --color-mintlify-text-secondary: #9BA1A6;
+  --color-mintlify-hover: #161B22;
+  --color-mintlify-card: rgba(16, 24, 40, 0.6);
+  --color-mintlify-select: #0D1219;
+  --color-mintlify-option-hover: #1A2433;
+
+  /* Backdrop Blur */
+  --blur-xl: 20px;
+
+  /* Box Shadows */
+  --shadow-glow: 0 0 20px rgba(0, 208, 151, 0.15);
+  --shadow-glow-lg: 0 0 30px rgba(0, 208, 151, 0.2);
+}
+    
+@layer base {
+  :root {
+    /* Base Colors */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
+
+    /* Mintlify Semantic Colors */
+    --mintlify-bg: 216 25% 7%;
+    --mintlify-bg-dark: 216 25% 5%;
+    --mintlify-sidebar: 216 25% 9%;
+    --mintlify-accent: 162 100% 41%;
+    --mintlify-accent-glow: 162 100% 41% / 19%;
+    --mintlify-accent-dark: 162 100% 31%;
+    --mintlify-text: 210 6% 91%;
+    --mintlify-text-secondary: 212 5% 63%;
+    --mintlify-hover: 216 25% 11%;
+    --mintlify-card: 222 60% 11% / 60%;
+    --mintlify-select: 216 25% 7%;
+    --mintlify-option-hover: 216 25% 15%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+
+  /* Base Styles */
+  /* body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  * {
+    @apply border-border;
+  } */
+}
