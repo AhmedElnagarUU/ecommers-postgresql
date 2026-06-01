@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "cart": "Cart",
+    "account": "Account",
+    "login": "Login",
+    "logout": "Logout",
+    "track": "Track order"
+  },
+  "home": {
+    "title": "Simple shopping, done right",
+    "subtitle": "Discover quality products with fast checkout and cash on delivery.",
+    "cta": "Shop now"
+  },
+  "shop": {
+    "title": "All products",
+    "search": "Search products...",
+    "category": "Category",
+    "all": "All",
+    "minPrice": "Min price",
+    "maxPrice": "Max price",
+    "noResults": "No products found"
+  },
+  "product": {
+    "addToCart": "Add to cart",
+    "selectVariant": "Please select all options",
+    "outOfStock": "Out of stock"
+  },
+  "cart": {
+    "title": "Your cart",
+    "empty": "Your cart is empty",
+    "checkout": "Checkout",
+    "continue": "Continue shopping",
+    "total": "Total"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "guest": "Guest checkout",
+    "loginHint": "Have an account?",
+    "name": "Full name",
+    "email": "Email",
+    "phone": "Phone",
+    "street": "Street",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP",
+    "country": "Country",
+    "cod": "Cash on delivery",
+    "placeOrder": "Place order",
+    "success": "Order placed successfully!"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Create account",
+    "password": "Password",
+    "noAccount": "No account?",
+    "hasAccount": "Already have an account?"
+  },
+  "orders": {
+    "title": "My orders",
+    "trackTitle": "Track your order",
+    "orderNumber": "Order number",
+    "track": "Track",
+    "empty": "No orders yet",
+    "status": "Status"
+  }
+}
