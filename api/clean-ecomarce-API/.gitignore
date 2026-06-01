@@ -1,0 +1,48 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Runtime files
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Debug files
+*.tgz
+*.gz
+
+# Local database
+*.sqlite
+*.sqlite3
+
+# EJS view cache (if used)
+views_cache/

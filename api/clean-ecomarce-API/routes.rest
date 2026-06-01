@@ -1,0 +1,191 @@
+
+### check super user exist or not
+ GET http://localhost:5000/api/v1/admin/check-super-admin
+
+
+
+
+### register admin for first time as super admin
+post http://localhost:5000/api/v1/admin
+content-type: application/json
+
+{
+   "name": "ahmed",
+   "email":"ahmedelnagaruu@gmail.Com",
+   "password":"123456789"
+}
+
+### login admin
+post http://localhost:5000/api/v1/admin/login
+content-type: application/json
+
+{
+   "email":"ahmedelnagaruu@gmail.Com",
+   "password":"123456789"
+}
+
+
+### show mongo indexes
+GET http://localhost:5000/listIndex
+
+
+### show mongo indexes
+DELETE  http://localhost:5000/dropAllIndexes
+
+
+
+### show mongo indexes
+GET http://localhost:5000
+
+
+
+
+### get products
+ GET http://localhost:5000/api/v1/products
+
+
+
+
+### post create products
+ POST http://localhost:5000/api/v1/products/
+Content-Type: application/json
+
+{
+   "name": "product9",
+   "description":"product6 description",
+   "price":"100",
+   "category":"category1",
+   "stock":"10"
+}
+
+
+
+### POST Create Product (with all fields + multiple images)
+POST http://localhost:5000/api/v1/products/
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="name"
+
+product8
+--MyBoundary
+Content-Disposition: form-data; name="description"
+
+This is product6 description.
+--MyBoundary
+Content-Disposition: form-data; name="price"
+
+100
+--MyBoundary
+Content-Disposition: form-data; name="category"
+
+category1
+--MyBoundary
+Content-Disposition: form-data; name="stock"
+
+10
+--MyBoundary
+Content-Disposition: form-data; name="images"; filename="product7.jpg"
+Content-Type: image/jpeg
+
+< ./images/product7.jpg
+--MyBoundary
+Content-Disposition: form-data; name="images"; filename="product6.jpg"
+Content-Type: image/jpeg
+
+< ./images/product6.jpg
+--MyBoundary--
+
+
+
+### get all  catagoey
+GET http://localhost:5000/api/v1/categories
+
+
+
+### create new  catagoey
+POST http://localhost:5000/api/v1/categories/
+Content-Type: application/json
+
+{
+   "name": "category1",
+   "description":"category1 description"
+}
+
+
+
+
+
+### GET All  Cart
+GET http://localhost:5000/api/v1/cart
+
+
+
+
+### get all  Customer
+GET http://localhost:5000/api/v1/customers
+
+
+
+### Create New  Customer
+POST http://localhost:5000/api/v1/customers/
+content-type : application/json
+
+{
+   "name" : "ahmed",
+   "email": "llll@gmail.com",
+   "phone": "01010101010"
+}
+
+
+### get all  Cart
+GET http://localhost:5000/api/v1/cart  
+
+
+
+### get  Cart By userId
+GET http://localhost:5000/api/v1/cart/68e64fadecfb2700475cfee3  
+
+### Create New  Cart
+POST http://localhost:5000/api/v1/cart/
+content-type : application/json
+
+{
+   "userId" : "68e64fadecfb2700475cfee3",
+   "items": [
+       {
+           "productId": "68e1c53849922e6cd061a8f5",
+           "quantity": 2
+       },
+       {
+           "productId": "68e2555087ed99dc86b1d07f",
+           "quantity": 1
+       }
+   ]
+}
+
+
+### POST Create Payment session (Stripe)
+POST http://localhost:5000/api/v1/payments/create-payment-session
+Content-Type: application/json
+
+{
+   "product" :[
+      {
+   "amount": 200,
+   "currency": "usd",
+   "productName": "Test Product"
+      },
+      {
+   "amount": 100,
+   "currency": "usd",
+   "productName": "Test Product 2"
+      },
+      {
+   "amount": 150,
+   "currency": "usd",   
+   "productName": "Test Product 3"
+      }
+
+   ]
+}
