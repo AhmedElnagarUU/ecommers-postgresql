@@ -1,4 +1,4 @@
-import { PaymentModel } from './payment.model';
+import { prisma } from '../../config/database';
 import logger from '../../config/logger';
 
 export class PaymentService {
@@ -7,78 +7,77 @@ export class PaymentService {
   }
 
   async createPayment(dto: any): Promise<any> {
-    const payment = {
-      ...dto,
-      status: 'pending',
-    };
-    return await PaymentModel.create(payment);
+    return await prisma.payment.create({
+      data: {
+        customerId: dto.customerId ?? dto.userId,
+        orderId: dto.orderId,
+        amount: dto.amount,
+        currency: dto.currency,
+        status: 'PENDING',
+        method: dto.method,
+        transactionId: dto.transactionId,
+        errorMessage: dto.errorMessage,
+      },
+    });
   }
 
   async getPaymentById(id: string): Promise<any> {
-    return await PaymentModel.findById(id);
+    return await prisma.payment.findUnique({ where: { id } });
   }
 
   async getPaymentByOrderId(orderId: string): Promise<any> {
-    return await PaymentModel.findOne({ orderId });
+    return await prisma.payment.findFirst({ where: { orderId } });
   }
 
   async getPaymentsByUserId(userId: string): Promise<any[]> {
-    return await PaymentModel.find({ userId });
+    return await prisma.payment.findMany({ where: { customerId: userId } });
   }
 
   async updatePayment(id: string, dto: any): Promise<any> {
-    const existingPayment = await PaymentModel.findById(id);
-    if (!existingPayment) {
-      return null;
-    }
-
-    const updateData = {
-      ...dto,
-    };
-
-    return await PaymentModel.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+    const existing = await prisma.payment.findUnique({ where: { id } });
+    if (!existing) return null;
+    return await prisma.payment.update({ where: { id }, data: dto });
   }
 
   async updatePaymentStatus(id: string, status: string): Promise<any> {
-    return await PaymentModel.findByIdAndUpdate(id, { status }, { new: true });
+    return await prisma.payment.update({ where: { id }, data: { status: status as any } });
   }
 
   async deletePayment(id: string): Promise<boolean> {
-    const result = await PaymentModel.findByIdAndDelete(id);
-    return !!result;
+    try {
+      await prisma.payment.delete({ where: { id } });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async processPayment(paymentId: string): Promise<any> {
-    const payment = await PaymentModel.findById(paymentId);
-    if (!payment) {
-      return null;
-    }
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) return null;
 
     try {
-      const updatedPayment = await PaymentModel.findByIdAndUpdate(paymentId, { status: 'completed' }, { new: true });
-      return updatedPayment;
+      return await prisma.payment.update({
+        where: { id: paymentId },
+        data: { status: 'COMPLETED' },
+      });
     } catch (error) {
-      await PaymentModel.findByIdAndUpdate(paymentId, { status: 'failed' });
+      await prisma.payment.update({ where: { id: paymentId }, data: { status: 'FAILED' } });
       throw error;
     }
   }
 
   async refundPayment(paymentId: string): Promise<any> {
-    const payment = await PaymentModel.findById(paymentId);
-    if (!payment) {
-      return null;
-    }
-
-    if (payment.status !== 'completed') {
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) return null;
+    if (payment.status !== 'COMPLETED') {
       throw new Error('Only completed payments can be refunded');
     }
 
-    try {
-      const updatedPayment = await PaymentModel.findByIdAndUpdate(paymentId, { status: 'refunded' }, { new: true });
-      return updatedPayment;
-    } catch (error) {
-      throw error;
-    }
+    return await prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: 'REFUNDED' },
+    });
   }
 
   async createPaymentIntent(product: any): Promise<any> {

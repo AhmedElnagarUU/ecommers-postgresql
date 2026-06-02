@@ -1,4 +1,3 @@
-/** Cart line returned to the storefront client */
 export interface StoreCartItem {
   productId: string;
   name?: string;
@@ -9,7 +8,7 @@ export interface StoreCartItem {
 }
 
 export interface StoreCart {
-  _id: string;
+  id: string;
   items: StoreCartItem[];
   totalPrice: number;
 }

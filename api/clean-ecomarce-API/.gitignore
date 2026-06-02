@@ -46,3 +46,5 @@ coverage/
 
 # EJS view cache (if used)
 views_cache/
+
+/src/generated/prisma

@@ -1,0 +1,317 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum PaymentTxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PAYPAL
+  STRIPE
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  PAYMENT_STATUS
+  SHIPPING_UPDATE
+  GENERAL
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ─── Core entities ───────────────────────────────────────────────────────────
+
+model Admin {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  password     String
+  role         AdminRole @default(ADMIN)
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+  permissions  String[]
+  refreshToken String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  slug        String     @unique
+  isActive    Boolean    @default(true)
+  parentId    String?
+  parent      Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryParent")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String?
+  password      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  cart          Cart?
+  orders        Order[]
+  payments      Payment[]
+  notifications Notification[]
+}
+
+// ─── Product + Variants ──────────────────────────────────────────────────────
+
+model Product {
+  id                  String                      @id @default(cuid())
+  name                String
+  description         String?
+  slug                String                      @unique
+  price               Float                       @default(0)
+  stock               Int                         @default(0)
+  categoryId          String
+  category            Category                    @relation(fields: [categoryId], references: [id])
+  images              String[]
+  status              ProductStatus               @default(ACTIVE)
+  hasVariants         Boolean                     @default(false)
+  useVariantStock     Boolean                     @default(false)
+  useVariantPricing   Boolean                     @default(false)
+  variantGroups       ProductVariantGroup[]
+  variantCombinations ProductVariantCombination[]
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model ProductVariantGroup {
+  id        String                 @id @default(cuid())
+  productId String
+  product   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  options   ProductVariantOption[]
+
+  @@index([productId])
+}
+
+model ProductVariantOption {
+  id      String              @id @default(cuid())
+  groupId String
+  group   ProductVariantGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  value   String
+
+  @@index([groupId])
+}
+
+model ProductVariantCombination {
+  id         String             @id @default(cuid())
+  productId  String
+  product    Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stock      Int?
+  price      Float?
+  selections VariantSelection[]
+
+  @@index([productId])
+}
+
+model VariantSelection {
+  id            String                    @id @default(cuid())
+  combinationId String
+  combination   ProductVariantCombination @relation(fields: [combinationId], references: [id], onDelete: Cascade)
+  groupName     String
+  value         String
+
+  @@index([combinationId])
+}
+
+// ─── Cart ────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id         String     @id @default(cuid())
+  customerId String     @unique
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  totalPrice Float      @default(0)
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String            @id @default(cuid())
+  cartId    String
+  cart      Cart              @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  variants  CartItemVariant[]
+
+  @@index([cartId])
+  @@index([productId])
+}
+
+model CartItemVariant {
+  id         String   @id @default(cuid())
+  cartItemId String
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  groupName  String
+  value      String
+
+  @@index([cartItemId])
+}
+
+// ─── Order ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String             @id @default(cuid())
+  orderNumber     String             @unique
+  customerId      String
+  customer        Customer           @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  shippingAddress ShippingAddress?
+  totalAmount     Float
+  status          OrderStatus        @default(PENDING)
+  paymentStatus   OrderPaymentStatus @default(PENDING)
+  payments        Payment[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id        String             @id @default(cuid())
+  orderId   String
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product            @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  variants  OrderItemVariant[]
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderItemVariant {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  groupName   String
+  value       String
+
+  @@index([orderItemId])
+}
+
+model ShippingAddress {
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  street  String
+  city    String
+  state   String
+  zipCode String
+  country String
+  phone   String
+}
+
+// ─── Payment ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id            String          @id @default(cuid())
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  orderId       String
+  order         Order           @relation(fields: [orderId], references: [id])
+  amount        Float
+  currency      String
+  status        PaymentTxStatus @default(PENDING)
+  method        PaymentMethod
+  transactionId String?
+  errorMessage  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orderId])
+  @@index([customerId])
+}
+
+// ─── Notification ────────────────────────────────────────────────────────────
+
+model Notification {
+  id         String               @id @default(cuid())
+  customerId String
+  customer   Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  title      String
+  message    String
+  priority   NotificationPriority
+  status     NotificationStatus   @default(UNREAD)
+  data       Json?
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([type])
+}

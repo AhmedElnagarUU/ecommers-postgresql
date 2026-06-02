@@ -1,5 +1,5 @@
-import { Product } from './product.model';
-import { Category } from '../category/category.model';
+import slugify from 'slugify';
+import { prisma } from '../../config/database';
 import { getSignedFileUrl } from '../../middleware/upload.middleware';
 import logger from '../../config/logger';
 import {
@@ -11,150 +11,61 @@ import {
   syncVariantCombinations,
 } from './product.variant.utils';
 import { ProductWithUrls } from './product.types';
+import { IVariantGroup, IVariantCombination } from './product.model';
 
 export type { ProductWithUrls } from './product.types';
+
+// ─── Prisma include shape used throughout ────────────────────────────────────
+
+export const PRODUCT_INCLUDE = {
+  category: { select: { id: true, name: true } },
+  variantGroups: {
+    include: { options: { select: { id: true, value: true } } },
+  },
+  variantCombinations: {
+    include: {
+      selections: { select: { id: true, groupName: true, value: true } },
+    },
+  },
+} as const;
+
+// ─── DB row → utility-friendly shapes ────────────────────────────────────────
+
+export function dbToVariantGroups(dbGroups: any[]): IVariantGroup[] {
+  return (dbGroups ?? []).map((g: any) => ({
+    name: g.name,
+    options: (g.options ?? []).map((o: any) => o.value),
+  }));
+}
+
+export function dbToVariantCombinations(dbCombos: any[]): IVariantCombination[] {
+  return (dbCombos ?? []).map((c: any) => ({
+    selections: Object.fromEntries(
+      (c.selections ?? []).map((s: any) => [s.groupName, s.value])
+    ),
+    stock: c.stock ?? undefined,
+    price: c.price ?? undefined,
+  }));
+}
+
+/** Convert a Prisma product row (with includes) into the plain shape
+ *  expected by validateVariantSelection / resolveItemPrice / getAvailableStock. */
+export function toProductPlain(prismaProduct: any): any {
+  return {
+    ...prismaProduct,
+    variantGroups: dbToVariantGroups(prismaProduct.variantGroups ?? []),
+    variantCombinations: dbToVariantCombinations(prismaProduct.variantCombinations ?? []),
+  };
+}
+
+// ─── ProductService ───────────────────────────────────────────────────────────
 
 export class ProductService {
   constructor() {
     logger.info('ProductService initialized');
   }
 
-  /** Resolve populated category document to category name string */
-  private toCategoryName(category: unknown): string | null {
-    if (!category) return null;
-    if (typeof category === 'object' && category !== null && 'name' in category) {
-      return String((category as { name: string }).name);
-    }
-    return null;
-  }
-
-  private formatVariantFields(plain: Record<string, unknown>): Record<string, unknown> {
-    if (!plain.hasVariants) {
-      return plain;
-    }
-
-    if (Array.isArray(plain.variantCombinations)) {
-      plain.variantCombinations = plain.variantCombinations.map((combo: any) => ({
-        ...combo,
-        selections: normalizeSelections(combo.selections),
-      }));
-    }
-
-    return plain;
-  }
-
-  private formatProductResponse(product: any, imageUrls: string[]): ProductWithUrls {
-    const plain = product.toObject ? product.toObject() : { ...product };
-    const categoryName = this.toCategoryName(plain.category);
-    const formatted = {
-      ...this.formatVariantFields(plain),
-      _id: String(plain._id ?? product._id),
-      category: categoryName ?? plain.category,
-      imageUrls,
-    };
-    return formatted as ProductWithUrls;
-  }
-
-  private parseBoolean(value: unknown, fallback = false): boolean {
-    if (value === true || value === 'true') return true;
-    if (value === false || value === 'false') return false;
-    return fallback;
-  }
-
-  private parseJsonField<T>(value: unknown, fallback: T): T {
-    if (value === undefined || value === null || value === '') return fallback;
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value) as T;
-      } catch {
-        return fallback;
-      }
-    }
-    return value as T;
-  }
-
-  private normalizeVariantGroups(groups: unknown): VariantGroup[] {
-    const parsed = this.parseJsonField<VariantGroup[]>(groups, []);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((group) => ({
-        name: String(group.name || '').trim(),
-        options: Array.isArray(group.options)
-          ? group.options.map((option) => String(option).trim()).filter(Boolean)
-          : [],
-      }))
-      .filter((group) => group.name && group.options.length > 0);
-  }
-
-  private normalizeVariantCombinations(combinations: unknown): VariantCombination[] {
-    const parsed = this.parseJsonField<VariantCombination[]>(combinations, []);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.map((combo) => ({
-      selections: normalizeSelections(combo.selections as any),
-      stock: combo.stock !== undefined ? Number(combo.stock) : undefined,
-      price: combo.price !== undefined ? Number(combo.price) : undefined,
-    }));
-  }
-
-  prepareProductData(data: any, existing?: any): any {
-    const prepared = { ...data };
-    const hasVariants = this.parseBoolean(prepared.hasVariants, false);
-
-    if (!hasVariants) {
-      prepared.hasVariants = false;
-      prepared.variantGroups = [];
-      prepared.variantCombinations = [];
-      prepared.useVariantStock = false;
-      prepared.useVariantPricing = false;
-      return prepared;
-    }
-
-    const variantGroups = this.normalizeVariantGroups(
-      prepared.variantGroups ?? existing?.variantGroups
-    );
-    const useVariantStock = this.parseBoolean(
-      prepared.useVariantStock,
-      existing?.useVariantStock ?? false
-    );
-    const useVariantPricing = this.parseBoolean(
-      prepared.useVariantPricing,
-      existing?.useVariantPricing ?? false
-    );
-    const incomingCombinations = this.normalizeVariantCombinations(
-      prepared.variantCombinations
-    );
-    const existingCombinations = (existing?.variantCombinations || []).map((combo: any) => ({
-      selections: normalizeSelections(combo.selections),
-      stock: combo.stock,
-      price: combo.price,
-    }));
-
-    let variantCombinations = syncVariantCombinations(
-      variantGroups,
-      incomingCombinations.length ? incomingCombinations : existingCombinations,
-      useVariantStock,
-      useVariantPricing
-    );
-
-    if (incomingCombinations.length) {
-      variantCombinations = mergeCombinationUpdates(
-        variantCombinations,
-        incomingCombinations,
-        useVariantStock,
-        useVariantPricing
-      );
-    }
-
-    prepared.hasVariants = true;
-    prepared.variantGroups = variantGroups;
-    prepared.useVariantStock = useVariantStock;
-    prepared.useVariantPricing = useVariantPricing;
-    prepared.variantCombinations = variantCombinations;
-
-    return prepared;
-  }
+  // ── Variant utilities (work on plain product objects) ─────────────────────
 
   validateVariantSelection(product: any, selectedVariants?: Record<string, string>): void {
     if (!product.hasVariants) return;
@@ -162,14 +73,10 @@ export class ProductService {
     const selections = normalizeSelections(selectedVariants as any);
     const groups: VariantGroup[] = product.variantGroups || [];
 
-    if (!groups.length) {
-      throw new Error('Product variants are not configured');
-    }
+    if (!groups.length) throw new Error('Product variants are not configured');
 
     for (const group of groups) {
-      if (!selections[group.name]) {
-        throw new Error(`Please select ${group.name}`);
-      }
+      if (!selections[group.name]) throw new Error(`Please select ${group.name}`);
       if (!group.options.includes(selections[group.name])) {
         throw new Error(`Invalid option for ${group.name}`);
       }
@@ -181,9 +88,7 @@ export class ProductService {
   }
 
   getAvailableStock(product: any, selectedVariants?: Record<string, string>): number {
-    if (!product.hasVariants || !product.useVariantStock) {
-      return product.stock ?? 0;
-    }
+    if (!product.hasVariants || !product.useVariantStock) return product.stock ?? 0;
 
     const combo = findCombination(
       product.variantCombinations,
@@ -208,55 +113,175 @@ export class ProductService {
     quantity: number,
     selectedVariants?: Record<string, string>
   ): Promise<void> {
-    const product = await Product.findById(productId);
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        variantCombinations: {
+          include: { selections: true },
+        },
+      },
+    });
     if (!product) throw new Error('Product not found');
 
     if (product.hasVariants && product.useVariantStock) {
       const selections = normalizeSelections(selectedVariants as any);
-      const combinations = (product.variantCombinations || []).map((combo: any) => ({
-        selections: normalizeSelections(combo.selections),
-        stock: combo.stock,
-        price: combo.price,
-      }));
-      const combo = findCombination(combinations, selections);
+      const combos = dbToVariantCombinations(product.variantCombinations);
+      const combo = findCombination(combos, selections);
       if (!combo || (combo.stock ?? 0) < quantity) {
         throw new Error('Insufficient stock for selected variant');
       }
-      combo.stock = (combo.stock ?? 0) - quantity;
-      product.variantCombinations = combinations.map((entry) => ({
-        selections: new Map(Object.entries(entry.selections)),
-        stock: entry.stock,
-        price: entry.price,
-      })) as any;
-      await product.save();
+
+      // Find the DB combination that matches these selections
+      const dbCombo = product.variantCombinations.find((c: any) => {
+        const sel = Object.fromEntries(c.selections.map((s: any) => [s.groupName, s.value]));
+        return JSON.stringify(Object.keys(sel).sort().map(k => `${k}:${sel[k]}`)) ===
+               JSON.stringify(Object.keys(selections).sort().map(k => `${k}:${selections[k]}`));
+      });
+
+      if (!dbCombo) throw new Error('Variant combination not found in DB');
+
+      await prisma.productVariantCombination.update({
+        where: { id: dbCombo.id },
+        data: { stock: (combo.stock ?? 0) - quantity },
+      });
       return;
     }
 
     const newStock = (product.stock || 0) - quantity;
     if (newStock < 0) throw new Error('Insufficient stock');
-    product.stock = newStock;
-    await product.save();
+    await prisma.product.update({ where: { id: productId }, data: { stock: newStock } });
   }
 
-  /** Add signed URLs to a single product */
+  // ── Variant DB write helpers ──────────────────────────────────────────────
+
+  private buildVariantCreateData(
+    variantGroups: VariantGroup[],
+    variantCombinations: VariantCombination[]
+  ) {
+    return {
+      variantGroups: {
+        create: variantGroups.map((g) => ({
+          name: g.name,
+          options: {
+            create: g.options.map((value) => ({ value })),
+          },
+        })),
+      },
+      variantCombinations: {
+        create: variantCombinations.map((combo) => ({
+          stock: combo.stock ?? null,
+          price: combo.price ?? null,
+          selections: {
+            create: Object.entries(combo.selections).map(([groupName, value]) => ({
+              groupName,
+              value,
+            })),
+          },
+        })),
+      },
+    };
+  }
+
+  private parseBoolean(value: unknown, fallback = false): boolean {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return fallback;
+  }
+
+  private parseJsonField<T>(value: unknown, fallback: T): T {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value) as T; } catch { return fallback; }
+    }
+    return value as T;
+  }
+
+  private normalizeVariantGroups(groups: unknown): VariantGroup[] {
+    const parsed = this.parseJsonField<VariantGroup[]>(groups, []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((g) => ({
+        name: String(g.name || '').trim(),
+        options: Array.isArray(g.options)
+          ? g.options.map((o) => String(o).trim()).filter(Boolean)
+          : [],
+      }))
+      .filter((g) => g.name && g.options.length > 0);
+  }
+
+  private normalizeVariantCombinations(combinations: unknown): VariantCombination[] {
+    const parsed = this.parseJsonField<VariantCombination[]>(combinations, []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((combo) => ({
+      selections: normalizeSelections(combo.selections as any),
+      stock: combo.stock !== undefined ? Number(combo.stock) : undefined,
+      price: combo.price !== undefined ? Number(combo.price) : undefined,
+    }));
+  }
+
+  prepareProductData(data: any, existing?: any): any {
+    const prepared = { ...data };
+    const hasVariants = this.parseBoolean(prepared.hasVariants, false);
+
+    if (!hasVariants) {
+      return {
+        ...prepared,
+        hasVariants: false,
+        variantGroups: [],
+        variantCombinations: [],
+        useVariantStock: false,
+        useVariantPricing: false,
+      };
+    }
+
+    const variantGroups = this.normalizeVariantGroups(
+      prepared.variantGroups ?? existing?.variantGroups
+    );
+    const useVariantStock = this.parseBoolean(
+      prepared.useVariantStock, existing?.useVariantStock ?? false
+    );
+    const useVariantPricing = this.parseBoolean(
+      prepared.useVariantPricing, existing?.useVariantPricing ?? false
+    );
+    const incomingCombinations = this.normalizeVariantCombinations(prepared.variantCombinations);
+    const existingCombinations = existing?.variantCombinations ?? [];
+
+    let variantCombinations = syncVariantCombinations(
+      variantGroups,
+      incomingCombinations.length ? incomingCombinations : existingCombinations,
+      useVariantStock,
+      useVariantPricing
+    );
+
+    if (incomingCombinations.length) {
+      variantCombinations = mergeCombinationUpdates(
+        variantCombinations,
+        incomingCombinations,
+        useVariantStock,
+        useVariantPricing
+      );
+    }
+
+    return { ...prepared, hasVariants: true, variantGroups, useVariantStock, useVariantPricing, variantCombinations };
+  }
+
+  // ── Image URL helpers ─────────────────────────────────────────────────────
+
   private async addImageUrls(product: any): Promise<ProductWithUrls> {
     try {
       const imageUrls = await Promise.all(
-        product.images.map((key: string) => getSignedFileUrl(key))
+        (product.images ?? []).map((key: string) => getSignedFileUrl(key))
       );
       return this.formatProductResponse(product, imageUrls);
-    } catch (error) {
-      console.error('Error generating image URLs:', error);
+    } catch {
       return this.formatProductResponse(product, []);
     }
   }
 
-  /** Add signed URLs to multiple products */
   private async addImageUrlsToProducts(products: any[]): Promise<ProductWithUrls[]> {
-    return Promise.all(products.map(p => this.addImageUrls(p)));
+    return Promise.all(products.map((p) => this.addImageUrls(p)));
   }
 
-  /** Public helpers for storefront */
   async formatProductsForStore(products: any[]): Promise<ProductWithUrls[]> {
     return this.addImageUrlsToProducts(products);
   }
@@ -265,87 +290,155 @@ export class ProductService {
     return this.addImageUrls(product);
   }
 
-  /** Fetch all products */
-  async getAllProducts(query?: any): Promise<any[]> {
-    const products = await Product.find().populate('category', 'name');
+  private formatProductResponse(product: any, imageUrls: string[]): ProductWithUrls {
+    const categoryName =
+      product.category && typeof product.category === 'object'
+        ? product.category.name
+        : product.category;
+
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      slug: product.slug,
+      price: product.price,
+      stock: product.stock,
+      category: categoryName ?? null,
+      images: product.images ?? [],
+      imageUrls,
+      status: product.status,
+      hasVariants: product.hasVariants,
+      variantGroups: dbToVariantGroups(product.variantGroups ?? []),
+      useVariantStock: product.useVariantStock,
+      useVariantPricing: product.useVariantPricing,
+      variantCombinations: dbToVariantCombinations(product.variantCombinations ?? []),
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  }
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
+
+  async getAllProducts(): Promise<ProductWithUrls[]> {
+    const products = await prisma.product.findMany({ include: PRODUCT_INCLUDE });
     return this.addImageUrlsToProducts(products);
   }
 
-  /** Fetch a single product by ID */
   async getProductById(id: string): Promise<ProductWithUrls> {
-    const product = await Product.findById(id).populate('category', 'name');
+    const product = await prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
     if (!product) throw new Error('Product not found');
     return this.addImageUrls(product);
   }
 
-  /** Create a new product */
   async createProduct(data: any): Promise<ProductWithUrls> {
-    logger.info('createProduct in servise')
-    const sku = `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const productData = this.prepareProductData({ ...data, sku });
-    const createdProduct = await Product.create(productData);
-    await createdProduct.populate('category', 'name');
-    return this.addImageUrls(createdProduct);
+    logger.info('createProduct in service');
+
+    const categoryId = data.category ?? data.categoryId;
+    const hasVariants = this.parseBoolean(data.hasVariants, false);
+    const slug = slugify(data.name ?? '', { lower: true });
+
+    const variantData = hasVariants
+      ? this.prepareProductData(data)
+      : { hasVariants: false, variantGroups: [], variantCombinations: [], useVariantStock: false, useVariantPricing: false };
+
+    const variantGroups: VariantGroup[] = variantData.variantGroups;
+    const variantCombinations: VariantCombination[] = variantData.variantCombinations;
+
+    const created = await prisma.product.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        slug,
+        price: Number(data.price) || 0,
+        stock: Number(data.stock) || 0,
+        categoryId,
+        images: Array.isArray(data.images) ? data.images : [],
+        status: data.status ?? 'ACTIVE',
+        hasVariants: variantData.hasVariants,
+        useVariantStock: variantData.useVariantStock,
+        useVariantPricing: variantData.useVariantPricing,
+        ...this.buildVariantCreateData(variantGroups, variantCombinations),
+      },
+      include: PRODUCT_INCLUDE,
+    });
+
+    return this.addImageUrls(created);
   }
 
-  /** Update an existing product */
   async updateProduct(id: string, data: any): Promise<ProductWithUrls> {
-    const existing = await Product.findById(id);
+    const existing = await prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
     if (!existing) throw new Error('Product not found');
 
-    const productData = this.prepareProductData(data, existing);
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      { $set: productData },
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
-    if (!updatedProduct) throw new Error('Product not found');
-    return this.addImageUrls(updatedProduct);
+    const existingPlain = toProductPlain(existing);
+    const prepared = this.prepareProductData(data, existingPlain);
+
+    const categoryId = data.category ?? data.categoryId ?? existing.categoryId;
+
+    const variantGroups: VariantGroup[] = prepared.variantGroups ?? [];
+    const variantCombinations: VariantCombination[] = prepared.variantCombinations ?? [];
+
+    // Delete then recreate all variant rows on update
+    await prisma.productVariantGroup.deleteMany({ where: { productId: id } });
+    await prisma.productVariantCombination.deleteMany({ where: { productId: id } });
+
+    const updated = await prisma.product.update({
+      where: { id },
+      data: {
+        name: data.name ?? existing.name,
+        description: data.description ?? existing.description,
+        slug: data.name ? slugify(data.name, { lower: true }) : existing.slug,
+        price: data.price !== undefined ? Number(data.price) : existing.price,
+        stock: data.stock !== undefined ? Number(data.stock) : existing.stock,
+        categoryId,
+        images: Array.isArray(data.images) ? data.images : existing.images,
+        status: data.status ?? existing.status,
+        hasVariants: prepared.hasVariants,
+        useVariantStock: prepared.useVariantStock,
+        useVariantPricing: prepared.useVariantPricing,
+        ...this.buildVariantCreateData(variantGroups, variantCombinations),
+      },
+      include: PRODUCT_INCLUDE,
+    });
+
+    return this.addImageUrls(updated);
   }
 
-  /** Delete a product */
   async deleteProduct(id: string): Promise<void> {
-    const product = await Product.findById(id);
+    const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw new Error('Product not found');
-    await Product.findByIdAndDelete(id);
+    await prisma.product.delete({ where: { id } });
   }
 
-  /** Update stock quantity */
   async updateStock(id: string, quantity: number): Promise<ProductWithUrls> {
-    const product = await Product.findById(id);
+    const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw new Error('Product not found');
 
     const newStock = (product.stock || 0) + quantity;
     if (newStock < 0) throw new Error('Insufficient stock');
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      { $set: { stock: newStock } },
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
-    if (!updatedProduct) throw new Error('Failed to update stock');
-    return this.addImageUrls(updatedProduct);
+    const updated = await prisma.product.update({
+      where: { id },
+      data: { stock: newStock },
+      include: PRODUCT_INCLUDE,
+    });
+    return this.addImageUrls(updated);
   }
 
-  /** Update product status */
-  async updateProductStatus(id: string, status: 'active' | 'inactive'): Promise<ProductWithUrls> {
-    const product = await Product.findById(id);
+  async updateProductStatus(id: string, status: 'ACTIVE' | 'INACTIVE'): Promise<ProductWithUrls> {
+    const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw new Error('Product not found');
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      { $set: { status } },
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
-    if (!updatedProduct) throw new Error('Failed to update status');
-    return this.addImageUrls(updatedProduct);
+    const updated = await prisma.product.update({
+      where: { id },
+      data: { status },
+      include: PRODUCT_INCLUDE,
+    });
+    return this.addImageUrls(updated);
   }
 
-  async getCategoryId(categoryName: string): Promise<any> {
+  async getCategoryId(categoryName: string): Promise<string | null> {
     logger.info(`Fetching category ID for category name: ${categoryName}`);
-    const category = await Category.findOne({ name: categoryName });
-    logger.info(`category: ${category}`);
-    logger.info(`categoryId: ${category ? category._id : 'Not Found'}`);
-    return category ? category._id : null;
+    const category = await prisma.category.findFirst({ where: { name: categoryName } });
+    return category ? category.id : null;
   }
 }

@@ -1,7 +1,6 @@
 import express from 'express';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
-import { AdminModel } from './admin.model';
 
 const router = express.Router();
 
@@ -20,14 +19,5 @@ router.put('/:id', adminController.updateAdmin.bind(adminController));
 router.put('/:id/status', adminController.changeAdminStatus.bind(adminController));
 
 router.delete('/:id', adminController.deleteAdmin.bind(adminController));
-
-router.get('/listIndex', async (req, res) => {
-  try {
-    const indexes = await AdminModel.listIndexes();
-    res.json({ success: true, indexes });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
 export default router;

@@ -1,4 +1,4 @@
-import { CustomerModel } from './customer.model';
+import { prisma } from '../../config/database';
 import { ApiError } from '../../utils/ApiError';
 import { eventBus } from '../../eventBus/eventbus';
 
@@ -7,7 +7,7 @@ export class CustomerService {
 
   async getAllCustomers(): Promise<any[]> {
     try {
-      return await CustomerModel.find();
+      return await prisma.customer.findMany();
     } catch (error) {
       throw new ApiError(500, 'Error fetching customers');
     }
@@ -15,10 +15,8 @@ export class CustomerService {
 
   async getCustomerById(id: string): Promise<any> {
     try {
-      const customer = await CustomerModel.findById(id);
-      if (!customer) {
-        throw new ApiError(404, 'Customer not found');
-      }
+      const customer = await prisma.customer.findUnique({ where: { id } });
+      if (!customer) throw new ApiError(404, 'Customer not found');
       return customer;
     } catch (error) {
       if (error instanceof ApiError) throw error;
@@ -28,8 +26,7 @@ export class CustomerService {
 
   async getCustomerByEmail(email: string): Promise<any> {
     try {
-      const customer = await CustomerModel.findOne({ email });
-      return customer;
+      return await prisma.customer.findUnique({ where: { email } });
     } catch (error) {
       throw new ApiError(500, 'Error fetching customer by email');
     }
@@ -37,11 +34,17 @@ export class CustomerService {
 
   async createCustomer(dto: any): Promise<any> {
     try {
-      const existingCustomer = await CustomerModel.findOne({ email: dto.email });
-      if (existingCustomer) {
-        throw new ApiError(400, 'Customer with this email already exists');
-      }
-      const customer = await CustomerModel.create(dto);
+      const existing = await prisma.customer.findUnique({ where: { email: dto.email } });
+      if (existing) throw new ApiError(400, 'Customer with this email already exists');
+
+      const customer = await prisma.customer.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          phone: dto.phone,
+          password: dto.password,
+        },
+      });
       eventBus.emit('customer.created', customer);
       return customer;
     } catch (error) {
@@ -52,24 +55,15 @@ export class CustomerService {
 
   async updateCustomer(id: string, dto: any): Promise<any> {
     try {
-      const existingCustomer = await CustomerModel.findById(id);
-      if (!existingCustomer) {
-        throw new ApiError(404, 'Customer not found to update');
+      const existing = await prisma.customer.findUnique({ where: { id } });
+      if (!existing) throw new ApiError(404, 'Customer not found to update');
+
+      if (dto.email && dto.email !== existing.email) {
+        const conflict = await prisma.customer.findUnique({ where: { email: dto.email } });
+        if (conflict) throw new ApiError(400, 'Another customer with this email already exists');
       }
 
-      if (dto.email && dto.email !== existingCustomer.email) {
-        const customerWithNewEmail = await CustomerModel.findOne({ email: dto.email });
-        if (customerWithNewEmail) {
-          throw new ApiError(400, 'Another customer with this email already exists');
-        }
-      }
-
-      const updatedCustomer = await CustomerModel.findByIdAndUpdate(
-        id,
-        { $set: dto },
-        { new: true, runValidators: true }
-      );
-      return updatedCustomer;
+      return await prisma.customer.update({ where: { id }, data: dto });
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error updating customer');
@@ -78,11 +72,9 @@ export class CustomerService {
 
   async deleteCustomer(id: string): Promise<boolean> {
     try {
-      const existingCustomer = await CustomerModel.findById(id);
-      if (!existingCustomer) {
-        throw new ApiError(404, 'Customer not found to delete');
-      }
-      await CustomerModel.findByIdAndDelete(id);
+      const existing = await prisma.customer.findUnique({ where: { id } });
+      if (!existing) throw new ApiError(404, 'Customer not found to delete');
+      await prisma.customer.delete({ where: { id } });
       return true;
     } catch (error) {
       if (error instanceof ApiError) throw error;

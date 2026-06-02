@@ -1,5 +1,5 @@
-import { CategoryModel } from './category.model';
 import slugify from 'slugify';
+import { prisma } from '../../config/database';
 import { ApiError } from '../../utils/ApiError';
 
 export class CategoryService {
@@ -7,7 +7,7 @@ export class CategoryService {
 
   async getAllCategories(): Promise<any[]> {
     try {
-      return await CategoryModel.find();
+      return await prisma.category.findMany({ include: { children: true } });
     } catch (error) {
       throw new ApiError(500, 'Error fetching categories');
     }
@@ -15,10 +15,11 @@ export class CategoryService {
 
   async getCategoryById(id: string): Promise<any> {
     try {
-      const category = await CategoryModel.findById(id);
-      if (!category) {
-        throw new ApiError(404, 'Category not found');
-      }
+      const category = await prisma.category.findUnique({
+        where: { id },
+        include: { children: true, parent: true },
+      });
+      if (!category) throw new ApiError(404, 'Category not found');
       return category;
     } catch (error) {
       if (error instanceof ApiError) throw error;
@@ -29,12 +30,15 @@ export class CategoryService {
   async createCategory(dto: any): Promise<any> {
     try {
       const slug = slugify(dto.name, { lower: true });
-      const categoryData = {
-        ...dto,
-        slug,
-        isActive: dto.isActive ?? true,
-      };
-      return await CategoryModel.create(categoryData);
+      return await prisma.category.create({
+        data: {
+          name: dto.name,
+          description: dto.description,
+          slug,
+          isActive: dto.isActive ?? true,
+          parentId: dto.parentId ?? null,
+        },
+      });
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error creating category');
@@ -43,27 +47,13 @@ export class CategoryService {
 
   async updateCategory(id: string, dto: any): Promise<any> {
     try {
-      const existingCategory = await CategoryModel.findById(id);
-      if (!existingCategory) {
-        throw new ApiError(404, 'Category not found');
-      }
+      const existing = await prisma.category.findUnique({ where: { id } });
+      if (!existing) throw new ApiError(404, 'Category not found');
 
-      const updateData: any = { ...dto };
+      const data: any = { ...dto };
+      if (dto.name) data.slug = slugify(dto.name, { lower: true });
 
-      if (dto.name) {
-        updateData.slug = slugify(dto.name, { lower: true });
-      }
-
-      const updatedCategory = await CategoryModel.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      );
-      if (!updatedCategory) {
-        throw new ApiError(404, 'Category not found');
-      }
-
-      return updatedCategory;
+      return await prisma.category.update({ where: { id }, data });
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error updating category');
@@ -72,10 +62,9 @@ export class CategoryService {
 
   async deleteCategory(id: string): Promise<boolean> {
     try {
-      const result = await CategoryModel.findByIdAndDelete(id);
-      if (!result) {
-        throw new ApiError(404, 'Category not found');
-      }
+      const existing = await prisma.category.findUnique({ where: { id } });
+      if (!existing) throw new ApiError(404, 'Category not found');
+      await prisma.category.delete({ where: { id } });
       return true;
     } catch (error) {
       if (error instanceof ApiError) throw error;
@@ -85,22 +74,9 @@ export class CategoryService {
 
   async updateCategoryStatus(id: string, isActive: boolean): Promise<any> {
     try {
-      const existingCategory = await CategoryModel.findById(id);
-      if (!existingCategory) {
-        throw new ApiError(404, 'Category not found');
-      }
-
-      const updatedCategory = await CategoryModel.findByIdAndUpdate(
-        id,
-        { $set: { isActive } },
-        { new: true, runValidators: true }
-      );
-
-      if (!updatedCategory) {
-        throw new ApiError(404, 'Category not found');
-      }
-
-      return updatedCategory;
+      const existing = await prisma.category.findUnique({ where: { id } });
+      if (!existing) throw new ApiError(404, 'Category not found');
+      return await prisma.category.update({ where: { id }, data: { isActive } });
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error updating category status');
@@ -109,8 +85,11 @@ export class CategoryService {
 
   async getCategoryNames(): Promise<string[]> {
     try {
-      const categories = await CategoryModel.find({ isActive: true });
-      return categories.map((category: any) => category.name);
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        select: { name: true },
+      });
+      return categories.map((c) => c.name);
     } catch (error) {
       throw new ApiError(500, 'Error fetching category names');
     }

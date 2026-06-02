@@ -1,13 +1,27 @@
-import { CartModel } from './cart.model';
+import { prisma } from '../../config/database';
 import logger from '../../config/logger';
+
+const CART_INCLUDE = {
+  items: {
+    include: {
+      product: true,
+      variants: true,
+    },
+  },
+} as const;
 
 export class CartService {
   constructor() {}
 
   async createCart(data: any): Promise<any> {
     try {
-      const cart = await CartModel.create(data);
-      return cart;
+      return await prisma.cart.create({
+        data: {
+          customerId: data.userId ?? data.customerId,
+          totalPrice: data.totalPrice ?? 0,
+        },
+        include: CART_INCLUDE,
+      });
     } catch (error) {
       logger.error('Error creating cart:', error);
       throw new Error('Error creating cart');
@@ -16,7 +30,7 @@ export class CartService {
 
   async getCartById(id: string): Promise<any | null> {
     try {
-      return await CartModel.findById(id).populate('items.productId');
+      return await prisma.cart.findUnique({ where: { id }, include: CART_INCLUDE });
     } catch (error) {
       logger.error('Error fetching cart:', error);
       throw new Error('Error fetching cart');
@@ -25,11 +39,14 @@ export class CartService {
 
   async updateCart(id: string, data: any): Promise<any | null> {
     try {
-      const existingCart = await CartModel.findById(id);
-      if (!existingCart) {
-        throw new Error('Cart not found');
-      }
-      return await CartModel.findByIdAndUpdate(id, data, { new: true });
+      const existing = await prisma.cart.findUnique({ where: { id } });
+      if (!existing) throw new Error('Cart not found');
+
+      return await prisma.cart.update({
+        where: { id },
+        data: { totalPrice: data.totalPrice ?? existing.totalPrice },
+        include: CART_INCLUDE,
+      });
     } catch (error) {
       logger.error('Error updating cart:', error);
       throw new Error('Error updating cart');
@@ -38,7 +55,7 @@ export class CartService {
 
   async getAll(): Promise<any[]> {
     try {
-      return await CartModel.find().populate('items.productId');
+      return await prisma.cart.findMany({ include: CART_INCLUDE });
     } catch (error) {
       logger.error('Error fetching carts:', error);
       throw new Error('Error fetching carts');
@@ -48,8 +65,11 @@ export class CartService {
   async getByUserId(userId: string): Promise<any | null> {
     try {
       logger.info(`service userId: ${userId}`);
-      const cart = await CartModel.findOne({ userId }).populate('items.productId');
-      logger.info(`service cart: ${cart}`);
+      const cart = await prisma.cart.findUnique({
+        where: { customerId: userId },
+        include: CART_INCLUDE,
+      });
+      logger.info(`service cart: ${JSON.stringify(cart)}`);
       return cart;
     } catch (error) {
       logger.error('Error fetching cart by userId:', error);

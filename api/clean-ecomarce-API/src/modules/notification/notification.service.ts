@@ -1,4 +1,4 @@
-import { NotificationModel } from './notification.model';
+import { prisma } from '../../config/database';
 import logger from '../../config/logger';
 import { eventBus } from '../../eventBus/eventbus';
 
@@ -11,101 +11,107 @@ export class NotificationService {
   }
 
   async createNotification(dto: any): Promise<any> {
-    const notification = {
-      ...dto,
-      status: 'unread',
-    };
-    return await NotificationModel.create(notification);
+    return await prisma.notification.create({
+      data: {
+        customerId: dto.customerId ?? dto.userId,
+        type: dto.type,
+        title: dto.title,
+        message: dto.message,
+        priority: dto.priority ?? 'MEDIUM',
+        status: 'UNREAD',
+        data: dto.data ?? null,
+      },
+    });
   }
 
   async getNotificationById(id: string): Promise<any> {
-    return await NotificationModel.findById(id);
+    return await prisma.notification.findUnique({ where: { id } });
   }
 
   async getNotificationsByUserId(userId: string): Promise<any[]> {
-    return await NotificationModel.find({ userId });
+    return await prisma.notification.findMany({ where: { customerId: userId } });
   }
 
   async getNotificationsByType(type: string): Promise<any[]> {
-    return await NotificationModel.find({ type });
+    return await prisma.notification.findMany({ where: { type: type as any } });
   }
 
   async getNotificationsByStatus(status: string): Promise<any[]> {
-    return await NotificationModel.find({ status });
+    return await prisma.notification.findMany({ where: { status: status as any } });
   }
 
   async updateNotification(id: string, dto: any): Promise<any> {
-    const existingNotification = await NotificationModel.findById(id);
-    if (!existingNotification) {
-      return null;
-    }
-
-    const updateData = {
-      ...dto,
-    };
-
-    return await NotificationModel.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+    const existing = await prisma.notification.findUnique({ where: { id } });
+    if (!existing) return null;
+    return await prisma.notification.update({ where: { id }, data: dto });
   }
 
   async updateNotificationStatus(id: string, status: string): Promise<any> {
-    return await NotificationModel.findByIdAndUpdate(id, { status }, { new: true });
+    return await prisma.notification.update({
+      where: { id },
+      data: { status: status as any },
+    });
   }
 
   async markAsRead(id: string): Promise<any> {
-    return await NotificationModel.findByIdAndUpdate(id, { status: 'read', readAt: new Date() }, { new: true });
+    return await prisma.notification.update({
+      where: { id },
+      data: { status: 'READ', readAt: new Date() },
+    });
   }
 
   async markAllAsRead(userId: string): Promise<boolean> {
-    const result = await NotificationModel.updateMany(
-      { userId, status: 'unread' },
-      { status: 'read', readAt: new Date() }
-    );
-    return result.modifiedCount > 0;
+    const result = await prisma.notification.updateMany({
+      where: { customerId: userId, status: 'UNREAD' },
+      data: { status: 'READ', readAt: new Date() },
+    });
+    return result.count > 0;
   }
 
   async deleteNotification(id: string): Promise<boolean> {
-    const result = await NotificationModel.findByIdAndDelete(id);
-    return !!result;
+    try {
+      await prisma.notification.delete({ where: { id } });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async deleteAllNotificationsByUserId(userId: string): Promise<boolean> {
-    const result = await NotificationModel.deleteMany({ userId });
-    return result.deletedCount > 0;
+    const result = await prisma.notification.deleteMany({ where: { customerId: userId } });
+    return result.count > 0;
   }
 
   async createOrderStatusNotification(userId: string, orderId: string, status: string): Promise<any> {
-    const dto = {
-      userId,
-      type: 'order_status',
+    return this.createNotification({
+      customerId: userId,
+      type: 'ORDER_STATUS',
       title: 'Order Status Update',
       message: `Your order #${orderId} has been ${status}`,
-      priority: 'medium',
+      priority: 'MEDIUM',
       data: { orderId, status },
-    };
-    return this.createNotification(dto);
+    });
   }
 
   async createPaymentStatusNotification(userId: string, orderId: string, status: string): Promise<any> {
-    const dto = {
-      userId,
-      type: 'payment_status',
+    return this.createNotification({
+      customerId: userId,
+      type: 'PAYMENT_STATUS',
       title: 'Payment Status Update',
       message: `Payment for order #${orderId} has been ${status}`,
-      priority: 'high',
+      priority: 'HIGH',
       data: { orderId, status },
-    };
-    return this.createNotification(dto);
+    });
   }
 
   async createShippingUpdateNotification(userId: string, orderId: string, trackingNumber: string): Promise<any> {
-    const dto = {
-      userId,
-      type: 'shipping_update',
+    return this.createNotification({
+      customerId: userId,
+      type: 'SHIPPING_UPDATE',
       title: 'Shipping Update',
       message: `Your order #${orderId} has been shipped. Tracking number: ${trackingNumber}`,
-      priority: 'medium',
+      priority: 'MEDIUM',
       data: { orderId, trackingNumber },
-    };
-    return this.createNotification(dto);
+    });
   }
 }

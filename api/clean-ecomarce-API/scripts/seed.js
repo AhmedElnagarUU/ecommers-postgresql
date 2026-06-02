@@ -1,12 +1,12 @@
 /**
- * Database seeder — fake categories, customers, and products for store testing.
+ * Database seeder — categories, customers, and products for store testing.
  * Product images are uploaded to S3 (same keys as real admin uploads).
  *
  * Usage:
- *   npm run seed          # add seed data (skips existing emails/slugs)
+ *   npm run seed          # add seed data (skips existing slugs/emails)
  *   npm run seed:reset    # clear seed data then seed again
  *
- * Requires in .env: MONGODB_URI, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+ * Requires in .env: DATABASE_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
  *                   AWS_REGION, AWS_BUCKET_NAME
  *
  * Test login: sarah@store.test / password123
@@ -14,112 +14,54 @@
  */
 
 require('dotenv').config();
-const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const slugify = require('slugify');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { PrismaClient } = require('../src/generated/prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
+const { Pool } = require('pg');
 
-const MONGODB_URI = process.env.MONGODB_URI;
 const RESET = process.argv.includes('--reset');
+
+// ─── Validate config ─────────────────────────────────────────────────────────
+
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL is missing in .env');
+  process.exit(1);
+}
 
 function assertAwsConfig() {
   const required = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME'];
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length) {
-    console.error('❌ Seeder uploads images to S3 (same as the dashboard). Missing in .env:');
+    console.error('❌ Seeder uploads images to S3. Missing in .env:');
     missing.forEach((key) => console.error(`   - ${key}`));
     process.exit(1);
   }
 }
-
-if (!MONGODB_URI) {
-  console.error('❌ MONGODB_URI is missing in .env');
-  process.exit(1);
-}
-
 assertAwsConfig();
 
-// ─── Schemas (match app models) ─────────────────────────────────────────────
+// ─── Prisma client ───────────────────────────────────────────────────────────
 
-const categorySchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    description: String,
-    slug: { type: String, required: true, unique: true },
-    isActive: { type: Boolean, default: true },
-  },
-  { timestamps: true }
-);
-
-const customerSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phone: String,
-    password: { type: String, select: false },
-  },
-  { timestamps: true }
-);
-
-const variantGroupSchema = new mongoose.Schema(
-  { name: String, options: [String] },
-  { _id: false }
-);
-
-const variantCombinationSchema = new mongoose.Schema(
-  {
-    selections: { type: Map, of: String },
-    stock: Number,
-    price: Number,
-  },
-  { _id: false }
-);
-
-const productSchema = new mongoose.Schema(
-  {
-    name: String,
-    description: String,
-    slug: { type: String, unique: true },
-    price: Number,
-    stock: Number,
-    category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
-    images: [String],
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
-    hasVariants: Boolean,
-    variantGroups: [variantGroupSchema],
-    useVariantStock: Boolean,
-    useVariantPricing: Boolean,
-    variantCombinations: [variantCombinationSchema],
-  },
-  { timestamps: true }
-);
-
-productSchema.pre('save', function (next) {
-  if (this.isModified('name')) {
-    this.slug = slugify(this.name || '', { lower: true });
-  }
-  next();
-});
-
-const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
-const Customer = mongoose.models.Customer || mongoose.model('Customer', customerSchema);
-const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   { name: 'Electronics', description: 'Phones, audio, and gadgets' },
-  { name: 'Clothing', description: 'Everyday wear and accessories' },
-  { name: 'Home', description: 'Furniture and decor' },
-  { name: 'Sports', description: 'Fitness and outdoor gear' },
+  { name: 'Clothing',    description: 'Everyday wear and accessories' },
+  { name: 'Home',        description: 'Furniture and decor' },
+  { name: 'Sports',      description: 'Fitness and outdoor gear' },
 ];
 
 const CUSTOMERS = [
   { name: 'Sarah Johnson', email: 'sarah@store.test', phone: '+1 555 0101', password: 'password123' },
-  { name: 'John Miller', email: 'john@store.test', phone: '+1 555 0102', password: 'password123' },
-  { name: 'Amira Hassan', email: 'amira@store.test', phone: '+20 100 555 0103', password: 'password123' },
+  { name: 'John Miller',   email: 'john@store.test',  phone: '+1 555 0102', password: 'password123' },
+  { name: 'Amira Hassan',  email: 'amira@store.test', phone: '+20 100 555 0103', password: 'password123' },
   { name: 'Guest Shopper', email: 'guest@store.test', phone: '+1 555 0199' },
-  { name: 'Omar Ali', email: 'omar@store.test', phone: '+966 50 555 0104', password: 'password123' },
+  { name: 'Omar Ali',      email: 'omar@store.test',  phone: '+966 50 555 0104', password: 'password123' },
 ];
 
 function buildCombinations(groups, useStock) {
@@ -145,15 +87,15 @@ function productImageUrl(slug, index = 0) {
 
 function buildProducts(categoryMap) {
   const simple = [
-    { name: 'Wireless Headphones', category: 'Electronics', price: 79.99, stock: 50, desc: 'Noise-cancelling over-ear headphones with 30h battery.' },
-    { name: 'Smart Watch', category: 'Electronics', price: 149.5, stock: 35, desc: 'Fitness tracking, heart rate, and notifications.' },
-    { name: 'USB-C Hub', category: 'Electronics', price: 34.99, stock: 80, desc: '7-in-1 adapter for laptops and tablets.' },
+    { name: 'Wireless Headphones', category: 'Electronics', price: 79.99,  stock: 50,  desc: 'Noise-cancelling over-ear headphones with 30h battery.' },
+    { name: 'Smart Watch',         category: 'Electronics', price: 149.5,  stock: 35,  desc: 'Fitness tracking, heart rate, and notifications.' },
+    { name: 'USB-C Hub',           category: 'Electronics', price: 34.99,  stock: 80,  desc: '7-in-1 adapter for laptops and tablets.' },
     { name: 'Classic Cotton T-Shirt', category: 'Clothing', price: 24.99, stock: 100, desc: 'Soft unisex tee available in multiple colors.' },
-    { name: 'Denim Jacket', category: 'Clothing', price: 89.0, stock: 40, desc: 'Medium-wash denim with modern fit.' },
-    { name: 'Ceramic Mug Set', category: 'Home', price: 29.99, stock: 60, desc: 'Set of 4 mugs, dishwasher safe.' },
-    { name: 'Desk Lamp', category: 'Home', price: 45.0, stock: 25, desc: 'LED lamp with adjustable brightness.' },
-    { name: 'Yoga Mat', category: 'Sports', price: 32.5, stock: 70, desc: 'Non-slip mat with carrying strap.' },
-    { name: 'Running Shoes', category: 'Sports', price: 110.0, stock: 45, desc: 'Lightweight shoes for road and track.' },
+    { name: 'Denim Jacket',        category: 'Clothing',    price: 89.0,   stock: 40,  desc: 'Medium-wash denim with modern fit.' },
+    { name: 'Ceramic Mug Set',     category: 'Home',        price: 29.99,  stock: 60,  desc: 'Set of 4 mugs, dishwasher safe.' },
+    { name: 'Desk Lamp',           category: 'Home',        price: 45.0,   stock: 25,  desc: 'LED lamp with adjustable brightness.' },
+    { name: 'Yoga Mat',            category: 'Sports',      price: 32.5,   stock: 70,  desc: 'Non-slip mat with carrying strap.' },
+    { name: 'Running Shoes',       category: 'Sports',      price: 110.0,  stock: 45,  desc: 'Lightweight shoes for road and track.' },
   ];
 
   const variantProduct = {
@@ -165,44 +107,24 @@ function buildProducts(categoryMap) {
     hasVariants: true,
     variantGroups: [
       { name: 'Color', options: ['Black', 'Gray', 'Navy'] },
-      { name: 'Size', options: ['S', 'M', 'L'] },
+      { name: 'Size',  options: ['S', 'M', 'L'] },
     ],
     useVariantStock: true,
     useVariantPricing: false,
   };
 
-  const list = [...simple, variantProduct];
-
-  return list.map((p) => {
+  return [...simple, variantProduct].map((p) => {
     const slug = slugify(p.name, { lower: true });
-    const images = [productImageUrl(slug, 0), productImageUrl(slug, 1)];
-    const base = {
-      name: p.name,
-      description: p.desc,
+    return {
+      ...p,
       slug,
-      price: p.price,
-      stock: p.stock ?? 20,
-      category: categoryMap[p.category],
-      images,
-      status: 'active',
-      hasVariants: !!p.hasVariants,
+      categoryId: categoryMap[p.category],
+      images: [productImageUrl(slug, 0), productImageUrl(slug, 1)],
     };
-
-    if (p.hasVariants) {
-      base.variantGroups = p.variantGroups;
-      base.useVariantStock = p.useVariantStock;
-      base.useVariantPricing = p.useVariantPricing || false;
-      base.variantCombinations = buildCombinations(p.variantGroups, p.useVariantStock).map((c) => ({
-        selections: new Map(Object.entries(c.selections)),
-        stock: c.stock,
-      }));
-    }
-
-    return base;
   });
 }
 
-// ─── S3 upload (same storage as dashboard product images) ───────────────────
+// ─── S3 upload ───────────────────────────────────────────────────────────────
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -210,32 +132,27 @@ const s3Client = new S3Client({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
-  forcePathStyle: true,
-  endpoint: `https://s3.${process.env.AWS_REGION}.amazonaws.com`,
 });
 
 const bucketName = process.env.AWS_BUCKET_NAME;
 
-async function uploadPlaceholderToS3(imageUrl, folder = 'products') {
+async function uploadPlaceholderToS3(imageUrl) {
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`Failed to fetch ${imageUrl}`);
 
   const buffer = Buffer.from(await res.arrayBuffer());
-  const key = `${folder}/seed-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+  const key = `products/seed-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-      Body: buffer,
-      ContentType: res.headers.get('content-type') || 'image/jpeg',
-    })
-  );
+  await s3Client.send(new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: buffer,
+    ContentType: res.headers.get('content-type') || 'image/jpeg',
+  }));
 
   return key;
 }
 
-/** Download placeholder images and store S3 keys only (never full URLs in DB). */
 async function uploadProductImages(imageUrls) {
   const keys = [];
   for (const url of imageUrls) {
@@ -246,13 +163,13 @@ async function uploadProductImages(imageUrls) {
   return keys;
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────
+// ─── Seed helpers ─────────────────────────────────────────────────────────────
 
-async function clearCollections() {
-  await Product.deleteMany({});
-  await Category.deleteMany({});
-  await Customer.deleteMany({
-    email: { $in: CUSTOMERS.map((c) => c.email) },
+async function clearData() {
+  await prisma.product.deleteMany({});
+  await prisma.category.deleteMany({});
+  await prisma.customer.deleteMany({
+    where: { email: { in: CUSTOMERS.map((c) => c.email) } },
   });
   console.log('🗑  Cleared products, categories, and seed customers');
 }
@@ -261,21 +178,23 @@ async function seedCategories() {
   const map = {};
   for (const cat of CATEGORIES) {
     const slug = slugify(cat.name, { lower: true });
-    let doc = await Category.findOne({ slug });
+    let doc = await prisma.category.findUnique({ where: { slug } });
     if (!doc) {
-      doc = await Category.create({ ...cat, slug, isActive: true });
+      doc = await prisma.category.create({
+        data: { name: cat.name, description: cat.description, slug, isActive: true },
+      });
       console.log(`   + category: ${cat.name}`);
     } else {
       console.log(`   · category exists: ${cat.name}`);
     }
-    map[cat.name] = doc._id;
+    map[cat.name] = doc.id;
   }
   return map;
 }
 
 async function seedCustomers() {
   for (const c of CUSTOMERS) {
-    const exists = await Customer.findOne({ email: c.email });
+    const exists = await prisma.customer.findUnique({ where: { email: c.email } });
     if (exists) {
       console.log(`   · customer exists: ${c.email}`);
       continue;
@@ -284,7 +203,7 @@ async function seedCustomers() {
     if (c.password) {
       data.password = await bcrypt.hash(c.password, 10);
     }
-    await Customer.create(data);
+    await prisma.customer.create({ data });
     console.log(`   + customer: ${c.email}${c.password ? ' (password123)' : ' (guest)'}`);
   }
 }
@@ -294,44 +213,89 @@ async function seedProducts(categoryMap) {
   let created = 0;
 
   for (const raw of products) {
-    const exists = await Product.findOne({ slug: raw.slug });
+    const exists = await prisma.product.findUnique({ where: { slug: raw.slug } });
     if (exists) {
       console.log(`   · product exists: ${raw.name}`);
       continue;
     }
 
     process.stdout.write(`   ↑ uploading images for ${raw.name}`);
-    raw.images = await uploadProductImages(raw.images);
-    await Product.create(raw);
+    const imageKeys = await uploadProductImages(raw.images);
+
+    const variantGroups = raw.variantGroups || [];
+    const combinations = raw.hasVariants
+      ? buildCombinations(variantGroups, raw.useVariantStock)
+      : [];
+
+    await prisma.product.create({
+      data: {
+        name: raw.name,
+        description: raw.desc,
+        slug: raw.slug,
+        price: raw.price,
+        stock: raw.stock ?? 20,
+        categoryId: raw.categoryId,
+        images: imageKeys,
+        status: 'ACTIVE',
+        hasVariants: !!raw.hasVariants,
+        useVariantStock: !!raw.useVariantStock,
+        useVariantPricing: !!raw.useVariantPricing,
+        variantGroups: {
+          create: variantGroups.map((g) => ({
+            name: g.name,
+            options: { create: g.options.map((value) => ({ value })) },
+          })),
+        },
+        variantCombinations: {
+          create: combinations.map((combo) => ({
+            stock: combo.stock ?? null,
+            price: null,
+            selections: {
+              create: Object.entries(combo.selections).map(([groupName, value]) => ({
+                groupName,
+                value,
+              })),
+            },
+          })),
+        },
+      },
+    });
+
     created++;
-    console.log(`   + product: ${raw.name} (${raw.images.length} S3 keys)`);
+    console.log(`   + product: ${raw.name} (${imageKeys.length} S3 keys)`);
   }
 
   return created;
 }
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 async function run() {
   console.log('\n🌱 Starting database seed...\n');
-  if (RESET) await clearCollections();
 
-  await mongoose.connect(MONGODB_URI);
-  console.log('✅ Connected to MongoDB\n');
+  try {
+    await prisma.$connect();
+    console.log('✅ Connected to PostgreSQL\n');
 
-  console.log('📁 Categories');
-  const categoryMap = await seedCategories();
+    if (RESET) await clearData();
 
-  console.log('\n👤 Customers');
-  await seedCustomers();
+    console.log('📁 Categories');
+    const categoryMap = await seedCategories();
 
-  console.log('\n📦 Products (images → S3, signed URLs in API like real uploads)');
-  const count = await seedProducts(categoryMap);
+    console.log('\n👤 Customers');
+    await seedCustomers();
 
-  console.log('\n✨ Done!');
-  console.log(`   Products created: ${count}`);
-  console.log('   Store login: sarah@store.test / password123');
-  console.log('   Guest email: guest@store.test (no password)\n');
+    console.log('\n📦 Products (images → S3)');
+    const count = await seedProducts(categoryMap);
 
-  await mongoose.disconnect();
+    console.log('\n✨ Done!');
+    console.log(`   Products created: ${count}`);
+    console.log('   Store login: sarah@store.test / password123');
+    console.log('   Guest email: guest@store.test (no password)\n');
+  } finally {
+    await prisma.$disconnect();
+    await pool.end();
+  }
 }
 
 run().catch((err) => {

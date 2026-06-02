@@ -1,4 +1,6 @@
-import { AdminModel, AdminRole } from './admin.model';
+import bcrypt from 'bcrypt';
+import { prisma } from '../../config/database';
+import { AdminRole } from './admin.model';
 import logger from '../../config/logger';
 
 export class AdminService {
@@ -8,75 +10,115 @@ export class AdminService {
 
   async registerAdmin(adminData: any): Promise<any> {
     if (!adminData.permissions) {
-      adminData.permissions = adminData.role === AdminRole.SUPER_ADMIN 
-        ? ['all'] 
+      adminData.permissions = adminData.role === AdminRole.SUPER_ADMIN
+        ? ['all']
         : ['read', 'write'];
     }
-    return await AdminModel.create(adminData);
+
+    const hashed = await bcrypt.hash(adminData.password, 10);
+    return await prisma.admin.create({
+      data: {
+        name: adminData.name,
+        email: adminData.email,
+        password: hashed,
+        role: adminData.role ?? AdminRole.ADMIN,
+        isActive: adminData.isActive ?? true,
+        permissions: adminData.permissions,
+      },
+    });
   }
 
   async getAllAdmins(query: any = {}): Promise<any[]> {
-    return await AdminModel.find(query);
+    const where: any = {};
+    if (query.role) where.role = query.role;
+    if (query.isActive !== undefined) where.isActive = query.isActive === 'true' || query.isActive === true;
+    return await prisma.admin.findMany({ where, omit: { password: true, refreshToken: true } });
   }
 
   async getAdminById(id: string): Promise<any> {
-    return await AdminModel.findById(id);
+    return await prisma.admin.findUnique({
+      where: { id },
+      omit: { password: true, refreshToken: true },
+    });
+  }
+
+  /** Used internally by passport — returns password for bcrypt.compare */
+  async getAdminByEmailWithPassword(email: string): Promise<any> {
+    return await prisma.admin.findUnique({ where: { email } });
   }
 
   async getAdminByEmail(email: string): Promise<any> {
-    return await AdminModel.findOne({ email });
+    return await prisma.admin.findUnique({
+      where: { email },
+      omit: { password: true, refreshToken: true },
+    });
   }
 
   async updateAdmin(id: string, updateData: any): Promise<any> {
-    const admin = await AdminModel.findById(id);
-    if (!admin) {
-      throw new Error('Admin not found');
-    }
+    const admin = await prisma.admin.findUnique({ where: { id } });
+    if (!admin) throw new Error('Admin not found');
 
     if (admin.role === AdminRole.SUPER_ADMIN && updateData.role === AdminRole.ADMIN) {
-      const superAdminCount = await this.hasSuperAdmin();
-      if (!superAdminCount) {
+      const hasSuperAdmin = await this.hasSuperAdmin();
+      if (!hasSuperAdmin) {
         throw new Error('Cannot change role: At least one super admin must exist');
       }
     }
 
-    return await AdminModel.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+    const data: any = { ...updateData };
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+
+    return await prisma.admin.update({
+      where: { id },
+      data,
+      omit: { password: true, refreshToken: true },
+    });
   }
 
   async deleteAdmin(id: string): Promise<any> {
-    const admin = await AdminModel.findById(id);
-    if (!admin) {
-      throw new Error('Admin not found');
-    }
+    const admin = await prisma.admin.findUnique({ where: { id } });
+    if (!admin) throw new Error('Admin not found');
 
     if (admin.role === AdminRole.SUPER_ADMIN) {
-      const superAdminCount = await this.hasSuperAdmin();
-      if (!superAdminCount) {
+      const hasSuperAdmin = await this.hasSuperAdmin();
+      if (!hasSuperAdmin) {
         throw new Error('Cannot delete: At least one super admin must exist');
       }
     }
 
-    return await AdminModel.findByIdAndDelete(id);
+    return await prisma.admin.delete({ where: { id } });
   }
 
   async getSuperAdmins(): Promise<any[]> {
-    return await AdminModel.find({ role: AdminRole.SUPER_ADMIN });
+    return await prisma.admin.findMany({
+      where: { role: AdminRole.SUPER_ADMIN },
+      omit: { password: true, refreshToken: true },
+    });
   }
 
   async updateLastLogin(id: string): Promise<void> {
-    await AdminModel.findByIdAndUpdate(id, { lastLogin: new Date() });
+    await prisma.admin.update({ where: { id }, data: { lastLogin: new Date() } });
   }
 
   async changeAdminStatus(id: string, isActive: boolean): Promise<any> {
-    return await AdminModel.findByIdAndUpdate(id, { isActive }, { new: true });
+    return await prisma.admin.update({
+      where: { id },
+      data: { isActive },
+      omit: { password: true, refreshToken: true },
+    });
   }
 
   async hasSuperAdmin(): Promise<boolean> {
-    const count = await AdminModel.countDocuments({ role: AdminRole.SUPER_ADMIN });
+    const count = await prisma.admin.count({ where: { role: AdminRole.SUPER_ADMIN } });
     return count > 0;
   }
 
   async getAdminProfile(id: string): Promise<any> {
-    return await AdminModel.findById(id).select('-password -refreshToken');
+    return await prisma.admin.findUnique({
+      where: { id },
+      omit: { password: true, refreshToken: true },
+    });
   }
 }
