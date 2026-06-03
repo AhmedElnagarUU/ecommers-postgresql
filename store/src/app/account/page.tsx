@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { storeApi } from '@/lib/services';
 import type { Order } from '@/lib/types';
+import { formatCurrency, formatDate } from '@/shared/lib/format';
+import { ButtonLink } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Container } from '@/shared/ui/Container';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 export default function AccountPage() {
   const { t } = useLocale();
@@ -25,34 +31,43 @@ export default function AccountPage() {
   if (!customer) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-semibold mb-2">{t('nav.account')}</h1>
-      <p className="text-gray-600 mb-8">
-        {customer.name} · {customer.email}
-      </p>
+    <Container className="py-10">
+      <SectionHeader
+        eyebrow="Customer area"
+        title={t('nav.account')}
+        description={`${customer.name} - ${customer.email}`}
+        action={<ButtonLink href="/products" variant="secondary">{t('cart.continue')}</ButtonLink>}
+      />
 
-      <h2 className="text-xl font-medium mb-4">{t('orders.title')}</h2>
-      {orders.length === 0 ? (
-        <p className="text-gray-500">{t('orders.empty')}</p>
-      ) : (
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <div key={order._id} className="bg-white border border-gray-200 rounded-xl p-4 flex justify-between items-center">
-              <div>
-                <p className="font-medium">#{order.orderNumber}</p>
-                <p className="text-sm text-gray-500">
-                  {t('orders.status')}: {order.status} · ${order.totalAmount.toFixed(2)}
-                </p>
-              </div>
-              <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Link href="/products" className="inline-block mt-8 text-brand-accent hover:underline">
-        {t('cart.continue')}
-      </Link>
-    </div>
+      <Card className="p-6">
+        <h2 className="text-xl font-black text-brand">{t('orders.title')}</h2>
+        {orders.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title={t('orders.empty')} description="Completed orders will appear here after checkout." />
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {orders.map((order) => (
+              <Link
+                key={order._id}
+                href={`/track-order?email=${encodeURIComponent(customer.email)}&orderNumber=${encodeURIComponent(order.orderNumber)}`}
+                className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4 transition hover:bg-sky-50 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-black text-brand">#{order.orderNumber}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t('orders.status')}: <span className="capitalize">{order.status}</span>
+                  </p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="font-black text-brand">{formatCurrency(order.totalAmount)}</p>
+                  <p className="text-xs text-slate-400">{formatDate(order.createdAt)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+    </Container>
   );
 }

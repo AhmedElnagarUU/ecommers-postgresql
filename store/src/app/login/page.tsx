@@ -4,8 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import { AuthCard } from '@/features/auth/components/AuthCard';
+import { Button } from '@/shared/ui/Button';
+import { Container } from '@/shared/ui/Container';
+import { Input } from '@/shared/ui/Input';
 
 export default function LoginPage() {
   const { t } = useLocale();
@@ -31,39 +35,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-16">
-      <h1 className="text-2xl font-semibold mb-6">{t('auth.login')}</h1>
-      <form onSubmit={submit} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t('checkout.email')}
-          required
-          className="w-full border rounded-lg px-4 py-2 text-sm"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder={t('auth.password')}
-          required
-          className="w-full border rounded-lg px-4 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand text-white py-3 rounded-full text-sm font-medium"
-        >
-          {t('auth.login')}
-        </button>
-      </form>
-      <p className="text-sm text-center mt-4 text-gray-600">
-        {t('auth.noAccount')}{' '}
-        <Link href="/register" className="text-brand-accent hover:underline">
-          {t('auth.register')}
-        </Link>
-      </p>
-    </div>
+    <Container className="py-12">
+      <AuthCard
+        title={t('auth.login')}
+        subtitle="Access your orders and saved cart."
+        footer={
+          <>
+            {t('auth.noAccount')}{' '}
+            <Link href="/register" className="font-semibold text-sky-500 hover:underline">
+              {t('auth.register')}
+            </Link>
+          </>
+        }
+      >
+        <form onSubmit={submit} className="space-y-4">
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('checkout.email')} required />
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t('auth.password')}
+            required
+          />
+          <Button type="submit" disabled={loading} size="lg" className="w-full">
+            {loading ? '...' : t('auth.login')}
+          </Button>
+        </form>
+      </AuthCard>
+    </Container>
   );
 }

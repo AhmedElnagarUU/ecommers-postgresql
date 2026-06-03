@@ -1,34 +1,29 @@
-import Link from 'next/link';
+import { CategoryShowcase } from '@/features/home/components/CategoryShowcase';
+import { FeaturedProducts } from '@/features/home/components/FeaturedProducts';
+import { HomeHero } from '@/features/home/components/HomeHero';
+import { PromoSection } from '@/features/home/components/PromoSection';
 import { storeApi } from '@/lib/services';
-import { ProductCard } from '@/components/ProductCard';
-import { HomeHero } from '@/components/HomeHero';
+import type { Category, Product } from '@/lib/types';
 
 export default async function HomePage() {
-  let products = [];
+  let products: Product[] = [];
+  let categories: Category[] = [];
+
   try {
-    products = await storeApi.getProducts();
+    const [productData, categoryData] = await Promise.all([storeApi.getProducts(), storeApi.getCategories()]);
+    products = productData;
+    categories = categoryData;
   } catch {
     products = [];
+    categories = [];
   }
 
-  const featured = products.slice(0, 4);
-
   return (
-    <div>
+    <>
       <HomeHero />
-      <section className="max-w-6xl mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-semibold">Featured</h2>
-          <Link href="/products" className="text-sm text-brand-accent hover:underline">
-            View all →
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {featured.map((product) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
-        </div>
-      </section>
-    </div>
+      <CategoryShowcase categories={categories} />
+      <FeaturedProducts products={products.slice(0, 8)} />
+      <PromoSection />
+    </>
   );
 }

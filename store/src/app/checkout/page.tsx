@@ -1,13 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import { EmptyCart } from '@/features/cart/components/EmptyCart';
+import { CheckoutSummary } from '@/features/checkout/components/CheckoutSummary';
 import { storeApi } from '@/lib/services';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Container } from '@/shared/ui/Container';
+import { Input } from '@/shared/ui/Input';
+import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 export default function CheckoutPage() {
   const { t } = useLocale();
@@ -28,7 +35,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    setForm((current) => ({ ...current, [e.target.name]: e.target.value }));
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -38,10 +45,10 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       const body: Record<string, unknown> = {
-        items: items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          selectedVariants: i.selectedVariants,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          selectedVariants: item.selectedVariants,
         })),
         shippingAddress: {
           street: form.street,
@@ -76,60 +83,57 @@ export default function CheckoutPage() {
 
   if (!items.length) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center">
-        <p className="text-gray-600">{t('cart.empty')}</p>
-        <Link href="/products" className="text-brand-accent mt-4 inline-block">
-          {t('cart.continue')}
-        </Link>
-      </div>
+      <Container className="py-16">
+        <EmptyCart title={t('cart.empty')} actionLabel={t('cart.continue')} />
+      </Container>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-semibold mb-2">{t('checkout.title')}</h1>
-      <p className="text-sm text-gray-500 mb-8">{t('checkout.cod')}</p>
+    <Container className="py-10">
+      <SectionHeader eyebrow="Checkout" title={t('checkout.title')} description={t('checkout.cod')} />
 
       {!token && (
-        <p className="text-sm mb-4">
+        <p className="mb-4 text-sm text-slate-500">
           {t('checkout.loginHint')}{' '}
-          <Link href="/login" className="text-brand-accent hover:underline">
+          <Link href="/login" className="font-semibold text-sky-500 hover:underline">
             {t('auth.login')}
           </Link>
         </p>
       )}
 
-      <form onSubmit={submit} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6">
-        {!token && (
-          <>
-            <input name="name" value={form.name} onChange={onChange} placeholder={t('checkout.name')} required className="w-full border rounded-lg px-4 py-2 text-sm" />
-            <input name="email" type="email" value={form.email} onChange={onChange} placeholder={t('checkout.email')} required className="w-full border rounded-lg px-4 py-2 text-sm" />
-          </>
-        )}
-        <input name="phone" value={form.phone} onChange={onChange} placeholder={t('checkout.phone')} className="w-full border rounded-lg px-4 py-2 text-sm" />
-        <input name="street" value={form.street} onChange={onChange} placeholder={t('checkout.street')} required className="w-full border rounded-lg px-4 py-2 text-sm" />
-        <div className="grid grid-cols-2 gap-4">
-          <input name="city" value={form.city} onChange={onChange} placeholder={t('checkout.city')} required className="border rounded-lg px-4 py-2 text-sm" />
-          <input name="state" value={form.state} onChange={onChange} placeholder={t('checkout.state')} className="border rounded-lg px-4 py-2 text-sm" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <input name="zipCode" value={form.zipCode} onChange={onChange} placeholder={t('checkout.zip')} required className="border rounded-lg px-4 py-2 text-sm" />
-          <input name="country" value={form.country} onChange={onChange} placeholder={t('checkout.country')} required className="border rounded-lg px-4 py-2 text-sm" />
-        </div>
+      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+        <Card className="p-6 md:p-8">
+          <form onSubmit={submit} className="space-y-4">
+            {!token && (
+              <>
+                <Input name="name" value={form.name} onChange={onChange} placeholder={t('checkout.name')} required />
+                <Input name="email" type="email" value={form.email} onChange={onChange} placeholder={t('checkout.email')} required />
+              </>
+            )}
+            <Input name="phone" value={form.phone} onChange={onChange} placeholder={t('checkout.phone')} />
+            <Input name="street" value={form.street} onChange={onChange} placeholder={t('checkout.street')} required />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input name="city" value={form.city} onChange={onChange} placeholder={t('checkout.city')} required />
+              <Input name="state" value={form.state} onChange={onChange} placeholder={t('checkout.state')} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input name="zipCode" value={form.zipCode} onChange={onChange} placeholder={t('checkout.zip')} required />
+              <Input name="country" value={form.country} onChange={onChange} placeholder={t('checkout.country')} required />
+            </div>
 
-        <div className="flex justify-between pt-4 border-t font-medium">
-          <span>{t('cart.total')}</span>
-          <span>${totalPrice.toFixed(2)}</span>
+            <Button type="submit" disabled={loading} size="lg" className="w-full">
+              {loading ? '...' : t('checkout.placeOrder')}
+            </Button>
+          </form>
+        </Card>
+        <div className="space-y-4">
+          <CheckoutSummary items={items} totalPrice={totalPrice} />
+          <Card className="p-5 text-sm leading-6 text-slate-500">
+            Orders are saved after checkout, and customers can track them with email plus order number.
+          </Card>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand text-white py-3 rounded-full font-medium disabled:opacity-50"
-        >
-          {loading ? '...' : t('checkout.placeOrder')}
-        </button>
-      </form>
-    </div>
+      </div>
+    </Container>
   );
 }
