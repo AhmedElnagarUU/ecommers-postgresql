@@ -3,5 +3,14 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-50 text-brand antialiased;
+  @apply bg-[#f4f8fb] text-brand antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.28), transparent 32rem),
+    radial-gradient(circle at top right, rgba(253, 230, 138, 0.25), transparent 28rem),
+    linear-gradient(180deg, #f8fbff 0%, #f4f8fb 42%, #eef5f8 100%);
+  min-height: 100vh;
+}
+
+::selection {
+  @apply bg-sky-200 text-brand;
 }

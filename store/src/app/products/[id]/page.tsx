@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import { useCart } from '@/contexts/CartContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import { ProductGallery } from '@/features/product-detail/components/ProductGallery';
+import { ProductInfoPanel } from '@/features/product-detail/components/ProductInfoPanel';
 import { storeApi } from '@/lib/services';
 import type { Product } from '@/lib/types';
-import { getProductImage } from '@/lib/image';
-import { useLocale } from '@/contexts/LocaleContext';
-import { useCart } from '@/contexts/CartContext';
+import { Container } from '@/shared/ui/Container';
+import { EmptyState } from '@/shared/ui/EmptyState';
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,12 +23,12 @@ export default function ProductDetailPage() {
     if (!id) return;
     storeApi
       .getProduct(id)
-      .then((p) => {
-        setProduct(p);
-        if (p.hasVariants && p.variantGroups) {
+      .then((data) => {
+        setProduct(data);
+        if (data.hasVariants && data.variantGroups) {
           const initial: Record<string, string> = {};
-          p.variantGroups.forEach((g) => {
-            if (g.options[0]) initial[g.name] = g.options[0];
+          data.variantGroups.forEach((group) => {
+            if (group.options[0]) initial[group.name] = group.options[0];
           });
           setSelections(initial);
         }
@@ -41,14 +43,14 @@ export default function ProductDetailPage() {
       const key = JSON.stringify(
         Object.keys(selections)
           .sort()
-          .map((k) => [k, selections[k]])
+          .map((selectionKey) => [selectionKey, selections[selectionKey]])
       );
       const combo = product.variantCombinations.find(
-        (c) =>
+        (candidate) =>
           JSON.stringify(
-            Object.keys(c.selections)
+            Object.keys(candidate.selections)
               .sort()
-              .map((k) => [k, c.selections[k]])
+              .map((selectionKey) => [selectionKey, candidate.selections[selectionKey]])
           ) === key
       );
       if (combo?.price !== undefined) return combo.price;
@@ -76,59 +78,29 @@ export default function ProductDetailPage() {
     });
   };
 
-  if (loading) return <p className="p-8 text-center text-gray-500">Loading...</p>;
-  if (!product) return <p className="p-8 text-center text-gray-500">Product not found</p>;
+  if (loading) return <p className="p-8 text-center text-slate-500">Loading...</p>;
 
-  const image = getProductImage(product);
+  if (!product) {
+    return (
+      <Container className="py-16">
+        <EmptyState title="Product not found" description="This product may have been removed or is no longer available." />
+      </Container>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="grid md:grid-cols-2 gap-10">
-        <div className="relative aspect-square bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {image ? (
-            <Image src={image} alt={product.name} fill className="object-cover" />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">No image</div>
-          )}
-        </div>
-
-        <div>
-          <p className="text-sm text-gray-500">{product.category}</p>
-          <h1 className="text-3xl font-semibold mt-1">{product.name}</h1>
-          <p className="mt-4 text-2xl font-semibold">${price.toFixed(2)}</p>
-          <p className="mt-4 text-gray-600 leading-relaxed">{product.description}</p>
-
-          {product.hasVariants && product.variantGroups?.map((group) => (
-            <div key={group.name} className="mt-6">
-              <label className="block text-sm font-medium mb-2">{group.name}</label>
-              <div className="flex flex-wrap gap-2">
-                {group.options.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setSelections((s) => ({ ...s, [group.name]: opt }))}
-                    className={`px-4 py-2 rounded-lg border text-sm ${
-                      selections[group.name] === opt
-                        ? 'border-brand bg-brand text-white'
-                        : 'border-gray-200 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="mt-8 bg-brand text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-brand-light"
-          >
-            {t('product.addToCart')}
-          </button>
-        </div>
+    <Container className="py-10">
+      <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+        <ProductGallery product={product} />
+        <ProductInfoPanel
+          product={product}
+          price={price}
+          selections={selections}
+          addLabel={t('product.addToCart')}
+          onVariantChange={(groupName, value) => setSelections((current) => ({ ...current, [groupName]: value }))}
+          onAdd={handleAdd}
+        />
       </div>
-    </div>
+    </Container>
   );
 }
