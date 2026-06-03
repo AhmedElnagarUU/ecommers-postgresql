@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CustomersTable } from '@/components/dashboard/customers/CustomersTable';
+import { CustomersTable } from '@/features/customers/components/CustomersTable';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([

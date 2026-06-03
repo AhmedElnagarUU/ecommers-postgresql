@@ -1,4 +1,4 @@
-import { Loading } from '@/components/ui/Loading';
+import { Loading } from '@/shared/ui/Loading';
 
 export default function DashboardLoading() {
   return <Loading />;

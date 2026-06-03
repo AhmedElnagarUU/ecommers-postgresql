@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { OrdersList } from '@/components/dashboard/orders/OrdersList';
-import { OrderDetails } from '@/components/dashboard/orders/OrderDetails';
-import { Order, ordersService } from '@/api/order.api';
-import { useToast } from '@/hooks/useToast';
+import { OrdersList } from '@/features/orders/components/OrdersList';
+import { OrderDetails } from '@/features/orders/components/OrderDetails';
+import { Order, ordersService } from '@/features/orders/api/order.api';
+import { useToast } from '@/shared/hooks/useToast';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);

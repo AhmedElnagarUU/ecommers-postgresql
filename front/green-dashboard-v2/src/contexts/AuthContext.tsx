@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import  authService, { Admin, AuthResponse }  from '@/api/auth.service';
+import authService, { Admin, AuthResponse } from '@/features/auth/api/auth.api';
 
 interface AuthContextType {
   admin: Admin | null;

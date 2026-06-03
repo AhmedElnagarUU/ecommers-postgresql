@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { GeneralSettings } from '@/components/dashboard/settings/GeneralSettings';
-import { SecuritySettings } from '@/components/dashboard/settings/SecuritySettings';
-import { IntegrationSettings } from '@/components/dashboard/settings/IntegrationSettings';
+import { GeneralSettings } from '@/features/settings/components/GeneralSettings';
+import { SecuritySettings } from '@/features/settings/components/SecuritySettings';
+import { IntegrationSettings } from '@/features/settings/components/IntegrationSettings';
 
 export default function SettingsPage() {
   const [loading, setLoading] = React.useState(true);

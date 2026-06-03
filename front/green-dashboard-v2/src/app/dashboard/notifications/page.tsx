@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { NotificationList } from '@/components/notifications/NotificationList';
-import { notificationService, Notification } from '@/api/notification.api';
+import { NotificationList } from '@/features/notifications/components/NotificationList';
+import { notificationService, Notification } from '@/features/notifications/api/notification.api';
 import { useRouter } from 'next/navigation';
 
 export default function NotificationsPage() {

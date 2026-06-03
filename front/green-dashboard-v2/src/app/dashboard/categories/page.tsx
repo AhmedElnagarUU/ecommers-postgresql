@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CategoryList } from '@/components/dashboard/categories/CategoryList';
-import { CategoryForm } from '@/components/dashboard/categories/CategoryForm';
-import { categoryService, Category, CreateCategoryDTO } from '@/api/category.api';
-import { useToast } from '@/hooks/useToast';
+import { CategoryList } from '@/features/categories/components/CategoryList';
+import { CategoryForm } from '@/features/categories/components/CategoryForm';
+import { categoryService, Category, CreateCategoryDTO } from '@/features/categories/api/category.api';
+import { useToast } from '@/shared/hooks/useToast';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);

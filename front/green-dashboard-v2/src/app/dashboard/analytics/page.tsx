@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { AnalyticsStats } from '@/components/dashboard/analytics/AnalyticsStats';
-import { AnalyticsChart } from '@/components/dashboard/analytics/AnalyticsChart';
-import { AnalyticsTable } from '@/components/dashboard/analytics/AnalyticsTable';
+import { AnalyticsStats } from '@/features/analytics/components/AnalyticsStats';
+import { AnalyticsChart } from '@/features/analytics/components/AnalyticsChart';
+import { AnalyticsTable } from '@/features/analytics/components/AnalyticsTable';
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(false);

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loading } from '@/components/ui/Loading';
-import authService, { Admin }  from '@/api/auth.api';
-import Sidebar from '@/components/dashboard/Sidebar';
-import { Header } from '@/components/dashboard/Header';
+import { Loading } from '@/shared/ui/Loading';
+import authService, { Admin }  from '@/features/auth/api/auth.api';
+import Sidebar from '@/shared/layout/Sidebar';
+import { Header } from '@/shared/layout/Header';
 import Cookies from 'js-cookie';
-import { dashboardService, DashboardStats } from '@/api/dashboard.api';
+import { dashboardService, DashboardStats } from '@/features/dashboard/api/dashboard.api';
 
 function BackgroundEffects() {
   return (

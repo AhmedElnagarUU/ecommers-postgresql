@@ -1,7 +1,7 @@
 'use client';
 
-import { LoginForm } from '@/components/auth/LoginForm';
-import AuthService from '@/api/auth.api';
+import { LoginForm } from '@/features/auth/components/LoginForm';
+import AuthService from '@/features/auth/api/auth.api';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 export default function LoginPage() {

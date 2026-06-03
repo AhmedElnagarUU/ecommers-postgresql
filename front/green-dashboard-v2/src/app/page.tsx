@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import authService from '@/api/auth.api';
-import { Loading } from '@/components/ui/Loading';
+import authService from '@/features/auth/api/auth.api';
+import { Loading } from '@/shared/ui/Loading';
 
 export default function HomePage() {
   const router = useRouter();

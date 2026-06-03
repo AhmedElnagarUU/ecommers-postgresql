@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "@/providers/Providers";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ToastProvider } from "@/components/ui/ToastProvider";
+import { ToastProvider } from "@/shared/ui/ToastProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {

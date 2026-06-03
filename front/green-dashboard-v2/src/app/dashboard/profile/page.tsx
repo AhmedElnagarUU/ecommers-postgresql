@@ -1,8 +1,8 @@
 'use client'
 import React from 'react';
-import { ProfileInfo } from '@/components/dashboard/profile/ProfileInfo';
-import { ProfileSettings } from '@/components/dashboard/profile/ProfileSettings';
-import { ProfileActivity } from '@/components/dashboard/profile/ProfileActivity';
+import { ProfileInfo } from '@/features/profile/components/ProfileInfo';
+import { ProfileSettings } from '@/features/profile/components/ProfileSettings';
+import { ProfileActivity } from '@/features/profile/components/ProfileActivity';
 
 export default function ProfilePage() {
   const [loading, setLoading] = React.useState(true);

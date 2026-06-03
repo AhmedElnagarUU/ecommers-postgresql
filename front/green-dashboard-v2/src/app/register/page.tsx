@@ -1,7 +1,7 @@
 'use client';
 
-import { RegisterForm } from '@/components/auth/RegisterForm';
-import AuthService from '@/api/auth.api';
+import { RegisterForm } from '@/features/auth/components/RegisterForm';
+import AuthService from '@/features/auth/api/auth.api';
 import { useEffect, useState } from 'react';
   import { useRouter } from 'next/navigation';
 import Link from 'next/link';
