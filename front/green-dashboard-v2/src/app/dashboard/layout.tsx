@@ -80,12 +80,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const loadDashboardData = async () => {
       try {
         setIsLoading(true);
-        const data = await dashboardService.getStats();
-        if (data) {
-          setDashboard(data);
+        const isAuthed = await authService.validateAuth();
+        if (!isAuthed) {
+          router.push('/login');
+          return;
         }
+        const data = await dashboardService.getStats();
+        setDashboard(data);
       } catch (error: any) {
         if (error.response?.status === 401) {
+          authService.clearAuth();
           router.push('/login');
         }
       } finally {

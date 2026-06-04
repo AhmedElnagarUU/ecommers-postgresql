@@ -121,10 +121,21 @@ export class AdminController {
   async checkSuperAdmin(req: Request, res: Response) {
     try {
       const hasSuperAdmin = await this.adminService.hasSuperAdmin();
-      res.json(new ApiResponse(200, { hasSuperAdmin }));
+      res.json(new ApiResponse(200, { exists: hasSuperAdmin, hasSuperAdmin }));
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
+  }
+
+  async getProfile(req: Request, res: Response) {
+    const admin = req.user as Record<string, unknown> | undefined;
+    if (!admin) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const { password: _password, refreshToken: _refreshToken, ...safeAdmin } = admin;
+    res.json(new ApiResponse(200, safeAdmin));
   }
 
   async logoutAdmin(req: Request, res: Response, next: NextFunction) {
