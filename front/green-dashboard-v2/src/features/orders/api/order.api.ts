@@ -1,5 +1,6 @@
 import { api } from '@/shared/lib/axios';
-import type { Order, OrdersResponse } from '../types';
+import type { Order, OrdersResponse, OrderStatus } from '../types';
+import { normalizeOrder, normalizeOrders, toApiStatus } from '../lib/normalize-order';
 
 export type { Order, OrderItem, OrderStatus, OrdersResponse } from '../types';
 
@@ -8,24 +9,21 @@ export const ordersService = {
     page?: number;
     limit?: number;
     status?: string;
-    paymentStatus?: string
+    paymentStatus?: string;
   }) {
-    console.log('try get orders')
     const { data } = await api.get<OrdersResponse>('/orders', { params });
-    console.log(data);
-    return data.data;
-
+    return normalizeOrders((data.data ?? []) as Record<string, unknown>[]);
   },
 
-  async updateOrderStatus(orderId: string, status: string) {
-    const { data } = await api.patch<{ success: boolean; data: Order }>(
+  async updateOrderStatus(orderId: string, status: OrderStatus) {
+    const { data } = await api.patch<{ success: boolean; data: Record<string, unknown> }>(
       `/orders/${orderId}/status`,
-      { status }
+      { status: toApiStatus(status) }
     );
-    return data.data;
+    return normalizeOrder(data.data);
   },
 
   async deleteOrder(orderId: string) {
     await api.delete(`/orders/${orderId}`);
   },
-}; 
+};

@@ -1,28 +1,25 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const AUTH_COOKIE = 'admin_session';
+
 export function middleware(request: NextRequest) {
-//   const token = request.cookies.get('refreshToken')?.value;
-//   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
-//                     request.nextUrl.pathname.startsWith('/register');
+  const hasSession = !!request.cookies.get(AUTH_COOKIE)?.value;
+  const { pathname } = request.nextUrl;
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
+  const isDashboard = pathname.startsWith('/dashboard');
 
-//   // If trying to access auth page while logged in, redirect to dashboard
-//   if (isAuthPage && token) {
-//     return NextResponse.redirect(new URL('/dashboard', request.url));
-//   }
+  if (isAuthPage && hasSession) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
 
-//   // If trying to access protected page while logged out, redirect to login
-//   if (!isAuthPage && !token) {
-//     return NextResponse.redirect(new URL('/login', request.url));
-//   }
+  if (isDashboard && !hasSession) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/login',
-    '/register',
-  ],
-}; 
+  matcher: ['/dashboard/:path*', '/login', '/register'],
+};

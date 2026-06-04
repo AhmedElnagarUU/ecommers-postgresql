@@ -15,9 +15,9 @@ router.get('/:id', adminController.getAdminById.bind(adminController));
 router.post('/register', adminController.registerAdmin.bind(adminController));
 router.post('/login', adminController.loginAdmin.bind(adminController));
 
-router.put('/:id', adminController.updateAdmin.bind(adminController));
-router.put('/:id/status', adminController.changeAdminStatus.bind(adminController));
+router.put('/:id', isAuthenticated, adminController.updateAdmin.bind(adminController));
+router.put('/:id/status', isAuthenticated, adminController.changeAdminStatus.bind(adminController));
 
-router.delete('/:id', adminController.deleteAdmin.bind(adminController));
+router.delete('/:id', isAuthenticated, adminController.deleteAdmin.bind(adminController));
 
 export default router;

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Order, OrderStatus } from '@/features/orders/api/order.api';
-import { Search, Filter, ChevronDown, Eye, MoreVertical } from 'lucide-react';
+import { Search, ChevronDown, Eye, MoreVertical } from 'lucide-react';
 import { ConfirmationModal } from '@/shared/ui/ConfirmationModal';
 
 interface OrdersListProps {
@@ -23,19 +23,18 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
     { value: 'all', label: 'All Statuses' },
     { value: 'pending', label: 'Pending' },
     { value: 'processing', label: 'Processing' },
-    { value: 'shipped', label: 'Shipped' },
-    { value: 'delivered', label: 'Delivered' },
-    { value: 'cancelled', label: 'Cancelled' }
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
   ];
 
   const filteredOrders = orders
-    .filter(order => {
-      // const matchesSearch = 
-      //   order.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      //   // order.customer.toLowerCase().includes(search.toLowerCase()) ||
-      //   // order.customer.toLowerCase().includes(search.toLowerCase());
-      // const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-      // return matchesSearch && matchesStatus;
+    .filter((order) => {
+      const matchesSearch =
+        order.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
+        order.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        order.customerEmail.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      return matchesSearch && matchesStatus;
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -58,9 +57,7 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
         return 'bg-yellow-500/10 text-yellow-400';
       case 'processing':
         return 'bg-blue-500/10 text-blue-400';
-      case 'shipped':
-        return 'bg-purple-500/10 text-purple-400';
-      case 'delivered':
+      case 'completed':
         return 'bg-green-500/10 text-green-400';
       case 'cancelled':
         return 'bg-red-500/10 text-red-400';
@@ -83,7 +80,6 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
 
   return (
     <div className="space-y-4">
-      {/* Header Actions */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="flex items-center space-x-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
@@ -104,7 +100,7 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
               className="appearance-none pl-4 pr-10 py-2 bg-mintlify-hover/30 text-mintlify-text rounded-lg 
                 focus:outline-none focus:ring-2 focus:ring-mintlify-accent/50"
             >
-              {statusOptions.map(option => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -115,9 +111,8 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
         </div>
       </div>
 
-      {/* Orders List */}
       <div className="grid gap-4">
-        {filteredOrders.map(order => (
+        {filteredOrders.map((order) => (
           <div
             key={order._id}
             className="bg-mintlify-card/20 backdrop-blur-xl rounded-lg p-4 
@@ -136,9 +131,9 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
                 </div>
                 <div className="mt-2 space-y-1">
                   <p className="text-sm text-mintlify-text-secondary">
-                    Customer: {order.customer}
+                    Customer: {order.customerName}
                   </p>
-                  <p className="text-sm  text-mintlify-text-secondary">
+                  <p className="text-sm text-mintlify-text-secondary">
                     Total: ${order.totalAmount.toFixed(2)}
                   </p>
                   <p className="text-sm text-mintlify-text-secondary">
@@ -154,7 +149,7 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
                 >
                   <Eye className="w-5 h-5" />
                 </button>
-                <div className="relative">
+                <div className="relative group">
                   <button
                     className="p-2 text-mintlify-text-secondary hover:text-mintlify-accent 
                       hover:bg-mintlify-accent/10 rounded-lg transition-colors"
@@ -162,11 +157,11 @@ export function OrdersList({ orders, onView, onStatusChange, onDelete, isLoading
                     <MoreVertical className="w-5 h-5" />
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-mintlify-card/20 backdrop-blur-xl rounded-lg 
-                    border border-mintlify-accent/10 shadow-lg z-10">
+                    border border-mintlify-accent/10 shadow-lg z-10 hidden group-hover:block">
                     <div className="py-1">
                       {statusOptions
-                        .filter(option => option.value !== 'all' && option.value !== order.status)
-                        .map(option => (
+                        .filter((option) => option.value !== 'all' && option.value !== order.status)
+                        .map((option) => (
                           <button
                             key={option.value}
                             onClick={() => onStatusChange(order._id, option.value as OrderStatus)}
