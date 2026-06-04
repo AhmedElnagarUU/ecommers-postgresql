@@ -18,9 +18,7 @@ export function OrderDetails({ order, onBack, onStatusChange }: OrderDetailsProp
         return <Clock className="w-5 h-5 text-yellow-400" />;
       case 'processing':
         return <Package className="w-5 h-5 text-blue-400" />;
-      case 'shipped':
-        return <Truck className="w-5 h-5 text-purple-400" />;
-      case 'delivered':
+      case 'completed':
         return <CheckCircle className="w-5 h-5 text-green-400" />;
       case 'cancelled':
         return <XCircle className="w-5 h-5 text-red-400" />;
@@ -35,7 +33,9 @@ export function OrderDetails({ order, onBack, onStatusChange }: OrderDetailsProp
         return 'bg-yellow-500/10 text-yellow-400';
       case 'processing':
         return 'bg-blue-500/10 text-blue-400';
-      case 'completed':
+      case 'shipped':
+        return 'bg-purple-500/10 text-purple-400';
+      case 'delivered':
         return 'bg-green-500/10 text-green-400';
       case 'cancelled':
         return 'bg-red-500/10 text-red-400';
