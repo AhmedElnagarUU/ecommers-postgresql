@@ -53,6 +53,11 @@ export const storeApi = {
     });
     return data.data;
   },
+
+  async getPixels() {
+    const { data } = await api.get<ApiEnvelope<PublicPixel[]>>('/pixels');
+    return data.data;
+  },
 };
 
 export type { CartItem };

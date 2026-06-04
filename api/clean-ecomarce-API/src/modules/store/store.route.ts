@@ -24,4 +24,7 @@ router.put('/cart', isCustomerAuth, controller.updateCart);
 router.post('/orders', optionalCustomerAuth, controller.createOrder);
 router.get('/orders', isCustomerAuth, controller.getMyOrders);
 
+// Tracking pixels (public GET; admin CRUD on mutating routes)
+router.use('/pixels', pixelRoutes);
+
 export default router;
