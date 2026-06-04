@@ -335,7 +335,39 @@ export class StoreService {
       });
     }
 
+    void this.fireMetaPurchaseEvents(order, customer, dto);
+
     return order;
+  }
+
+  private async fireMetaPurchaseEvents(
+    order: { id: string; orderNumber: string; totalAmount: number },
+    customer: { email: string; phone?: string | null },
+    dto: { guest?: { email?: string; phone?: string }; shippingAddress?: { phone?: string } }
+  ) {
+    try {
+      const metaPixels = await this.pixelService.getEnabledMetaCapiPixels();
+      if (!metaPixels.length) return;
+
+      const email = customer.email || dto.guest?.email;
+      const phone = customer.phone || dto.guest?.phone || dto.shippingAddress?.phone;
+
+      await Promise.all(
+        metaPixels.map((pixel) =>
+          sendMetaConversionEvent({
+            pixelId: pixel.pixelId,
+            accessToken: pixel.accessToken!,
+            eventName: 'Purchase',
+            eventId: order.orderNumber,
+            testEventCode: pixel.testEventCode,
+            userData: { email, phone: phone ?? undefined },
+            customData: { value: order.totalAmount, currency: 'USD' },
+          })
+        )
+      );
+    } catch {
+      // Tracking failures must not block order creation
+    }
   }
 
   async getMyOrders(customerId: string) {

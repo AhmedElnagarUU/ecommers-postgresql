@@ -32,6 +32,27 @@ export default function SettingsPage() {
 
       {/* Content Grid */}
       <div className="space-y-6">
+        <Link
+          href="/dashboard/settings/pixels"
+          className="block bg-mintlify-card/20 backdrop-blur-xl rounded-2xl border border-mintlify-accent/10 p-6
+            hover:border-mintlify-accent/30 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3 items-center">
+              <div className="h-10 w-10 rounded-lg bg-mintlify-accent/10 flex items-center justify-center text-mintlify-accent">
+                <Crosshair className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-mintlify-text">Pixels & Tracking</h3>
+                <p className="text-sm text-mintlify-text-secondary">
+                  Meta, Google, TikTok, Snapchat, and GTM pixels for your storefront
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-mintlify-text-secondary" />
+          </div>
+        </Link>
+
         {/* General Settings */}
         <GeneralSettings loading={loading} />
 
