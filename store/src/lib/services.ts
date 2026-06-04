@@ -61,6 +61,11 @@ export const storeApi = {
     });
     return normalizeOrder(data.data as Record<string, unknown>);
   },
+
+  async getPixels() {
+    const { data } = await api.get<ApiEnvelope<PublicPixel[]>>('/pixels');
+    return data.data;
+  },
 };
 
 export type { CartItem };

@@ -65,6 +65,16 @@ enum NotificationPriority {
   HIGH
 }
 
+// ─── Store (singleton project settings) ──────────────────────────────────────
+
+model Store {
+  id        String   @id @default("default")
+  name      String   @default("Store")
+  pixels    Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Core entities ───────────────────────────────────────────────────────────
 
 model Admin {
