@@ -35,9 +35,7 @@ export function OrderDetails({ order, onBack, onStatusChange }: OrderDetailsProp
         return 'bg-yellow-500/10 text-yellow-400';
       case 'processing':
         return 'bg-blue-500/10 text-blue-400';
-      case 'shipped':
-        return 'bg-purple-500/10 text-purple-400';
-      case 'delivered':
+      case 'completed':
         return 'bg-green-500/10 text-green-400';
       case 'cancelled':
         return 'bg-red-500/10 text-red-400';

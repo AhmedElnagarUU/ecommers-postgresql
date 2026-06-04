@@ -1,6 +1,7 @@
 import { api } from '@/shared/lib/axios';
 import { ApiResponse } from '@/shared/types/api';
 import type { CreateProductDTO, Product, UpdateProductDTO } from '../types';
+import { normalizeProduct, normalizeProducts, productStatusToApi } from '../lib/normalize-product';
 
 class ProductService {
   async getProducts(): Promise<Product[]> {
@@ -8,7 +9,7 @@ class ProductService {
       withCredentials: true,
     });
     if (!response.data?.data) throw new Error('Invalid products response');
-    return response.data.data;
+    return normalizeProducts(response.data.data as unknown as Record<string, unknown>[]);
   }
 
   async getProduct(id: string): Promise<Product> {
@@ -16,7 +17,7 @@ class ProductService {
       withCredentials: true,
     });
     if (!response.data?.data) throw new Error('Invalid product response');
-    return response.data.data;
+    return normalizeProduct(response.data.data as unknown as Record<string, unknown>);
   }
 
   async createProduct(productData: CreateProductDTO): Promise<Product> {
@@ -33,6 +34,10 @@ class ProductService {
         formData.append(key, JSON.stringify(value));
         return;
       }
+      if (key === 'status' && typeof value === 'string') {
+        formData.append(key, productStatusToApi(value as 'active' | 'inactive'));
+        return;
+      }
       if (typeof value === 'boolean') {
         formData.append(key, value ? 'true' : 'false');
         return;
@@ -45,7 +50,7 @@ class ProductService {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (!response.data?.data) throw new Error('Invalid create product response');
-    return response.data.data;
+    return normalizeProduct(response.data.data as unknown as Record<string, unknown>);
   }
 
   async updateProduct(id: string, productData: UpdateProductDTO): Promise<Product> {
@@ -62,6 +67,10 @@ class ProductService {
         formData.append(key, JSON.stringify(value));
         return;
       }
+      if (key === 'status' && typeof value === 'string') {
+        formData.append(key, productStatusToApi(value as 'active' | 'inactive'));
+        return;
+      }
       if (typeof value === 'boolean') {
         formData.append(key, value ? 'true' : 'false');
         return;
@@ -74,7 +83,7 @@ class ProductService {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (!response.data?.data) throw new Error('Invalid update product response');
-    return response.data.data;
+    return normalizeProduct(response.data.data as unknown as Record<string, unknown>);
   }
 
   async deleteProduct(id: string): Promise<void> {
@@ -82,11 +91,13 @@ class ProductService {
   }
 
   async updateProductStatus(id: string, status: 'active' | 'inactive'): Promise<Product> {
-    const response = await api.patch<ApiResponse<Product>>(`/products/${id}/status`, { status }, {
-      withCredentials: true,
-    });
+    const response = await api.put<ApiResponse<Product>>(
+      `/products/${id}`,
+      { status: productStatusToApi(status) },
+      { withCredentials: true }
+    );
     if (!response.data?.data) throw new Error('Invalid update status response');
-    return response.data.data;
+    return normalizeProduct(response.data.data as unknown as Record<string, unknown>);
   }
 
   async getCategories(): Promise<string[]> {

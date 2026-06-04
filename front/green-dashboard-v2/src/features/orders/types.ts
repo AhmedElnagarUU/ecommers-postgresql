@@ -1,8 +1,9 @@
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled' | 'shipped' | 'delivered';
+export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
 
 export interface OrderItem {
   product: {
     _id: string;
+    id: string;
     name: string;
     images: string[];
     price: number;
@@ -14,14 +15,20 @@ export interface OrderItem {
 
 export interface Order {
   _id: string;
+  id: string;
   orderNumber: string;
   customer: {
     _id: string;
+    id: string;
     name: string;
     email: string;
   };
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
   items: OrderItem[];
   totalAmount: number;
+  total: number;
   status: OrderStatus;
   paymentStatus: 'pending' | 'paid' | 'failed';
   shippingAddress: {
