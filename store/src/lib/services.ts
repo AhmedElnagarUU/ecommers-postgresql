@@ -1,5 +1,6 @@
 import { api, ApiEnvelope } from './api';
 import type { Cart, CartItem, Category, Customer, Order, Product } from './types';
+import type { PublicPixel } from './pixel-types';
 import {
   normalizeCart,
   normalizeCategories,
