@@ -1,38 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { customersService, type DashboardCustomer } from '@/features/customers/api/customer.api';
 import { CustomersTable } from '@/features/customers/components/CustomersTable';
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState([
-    {
-      _id: 'CUS001',
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      phone: '+1 234-567-8901',
-      location: 'New York, USA',
-      totalOrders: 12,
-      totalSpent: 2499.99
-    },
-    {
-      _id: 'CUS002',
-      name: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      phone: '+1 234-567-8902',
-      location: 'Los Angeles, USA',
-      totalOrders: 8,
-      totalSpent: 1799.50
-    },
-    {
-      _id: 'CUS003',
-      name: 'Mike Johnson',
-      email: 'mike.johnson@example.com',
-      phone: '+1 234-567-8903',
-      location: 'Chicago, USA',
-      totalOrders: 15,
-      totalSpent: 3299.99
-    }
-  ]);
+  const [customers, setCustomers] = useState<DashboardCustomer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    customersService
+      .getCustomers()
+      .then((data) => {
+        if (!mounted) return;
+        setCustomers(data);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (!mounted) return;
+        const message = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message;
+        setError(message || 'Unable to load customers');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-mintlify-bg p-6">
@@ -51,7 +50,17 @@ export default function CustomersPage() {
       
       {/* Content */}
       <div className="relative">
-        <CustomersTable customers={customers} />
+        {isLoading ? (
+          <div className="rounded-2xl border border-mintlify-accent/10 bg-mintlify-card/20 p-8 text-mintlify-text-secondary">
+            Loading customers...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-red-300">
+            {error}
+          </div>
+        ) : (
+          <CustomersTable customers={customers} />
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,31 @@ export class CustomerService {
 
   async getAllCustomers(): Promise<any[]> {
     try {
-      return await prisma.customer.findMany();
+      const customers = await prisma.customer.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          createdAt: true,
+          updatedAt: true,
+          orders: {
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              orderNumber: true,
+              totalAmount: true,
+              createdAt: true,
+              shippingAddress: true,
+            },
+          },
+          addresses: {
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+          },
+        },
+      });
+      return customers.map((customer) => this.toCustomerSummary(customer));
     } catch (error) {
       throw new ApiError(500, 'Error fetching customers');
     }
@@ -15,9 +39,34 @@ export class CustomerService {
 
   async getCustomerById(id: string): Promise<any> {
     try {
-      const customer = await prisma.customer.findUnique({ where: { id } });
+      const customer = await prisma.customer.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          createdAt: true,
+          updatedAt: true,
+          orders: {
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              orderNumber: true,
+              totalAmount: true,
+              status: true,
+              paymentStatus: true,
+              createdAt: true,
+              shippingAddress: true,
+            },
+          },
+          addresses: {
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+          },
+        },
+      });
       if (!customer) throw new ApiError(404, 'Customer not found');
-      return customer;
+      return this.toCustomerSummary(customer);
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error fetching customer by ID');
@@ -80,5 +129,32 @@ export class CustomerService {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error deleting customer');
     }
+  }
+
+  private toCustomerSummary(customer: any) {
+    const totalOrders = customer.orders.length;
+    const totalSpent = customer.orders.reduce(
+      (sum: number, order: { totalAmount: number }) => sum + order.totalAmount,
+      0
+    );
+    const primaryAddress = customer.addresses[0] || customer.orders[0]?.shippingAddress || null;
+    const location = primaryAddress
+      ? [primaryAddress.city, primaryAddress.country].filter(Boolean).join(', ')
+      : '';
+
+    return {
+      id: customer.id,
+      _id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone || primaryAddress?.phone || '',
+      location,
+      totalOrders,
+      totalSpent,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      addresses: customer.addresses,
+      orders: customer.orders,
+    };
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, CheckAll } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
 
 interface NotificationListProps {
@@ -51,7 +51,7 @@ export function NotificationList({
             className="flex items-center space-x-1 text-sm text-mintlify-text-secondary 
               hover:text-mintlify-text transition-colors"
           >
-            <CheckAll className="w-4 h-4" />
+            <CheckCheck className="w-4 h-4" />
             <span>Mark all as read</span>
           </button>
         )}

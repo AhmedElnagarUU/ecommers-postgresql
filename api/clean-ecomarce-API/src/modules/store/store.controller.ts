@@ -25,7 +25,57 @@ export class StoreController {
   };
 
   me = async (req: Request, res: Response) => {
-    res.json(new ApiResponse(200, req.customer, 'Customer profile'));
+    try {
+      const customer = await this.storeService.getProfile(req.customer!.id);
+      res.json(new ApiResponse(200, customer, 'Customer profile'));
+    } catch (e: any) {
+      res.status(e.statusCode || 404).json({ message: e.message });
+    }
+  };
+
+  updateProfile = async (req: Request, res: Response) => {
+    try {
+      const data = await this.storeService.updateProfile(req.customer!.id, req.body);
+      res.json(new ApiResponse(200, data, 'Profile updated'));
+    } catch (e: any) {
+      res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  getAddresses = async (req: Request, res: Response) => {
+    try {
+      const addresses = await this.storeService.getAddresses(req.customer!.id);
+      res.json(new ApiResponse(200, addresses));
+    } catch (e: any) {
+      res.status(e.statusCode || 500).json({ message: e.message });
+    }
+  };
+
+  createAddress = async (req: Request, res: Response) => {
+    try {
+      const address = await this.storeService.createAddress(req.customer!.id, req.body);
+      res.status(201).json(new ApiResponse(201, address, 'Address saved'));
+    } catch (e: any) {
+      res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  updateAddress = async (req: Request, res: Response) => {
+    try {
+      const address = await this.storeService.updateAddress(req.customer!.id, req.params.id, req.body);
+      res.json(new ApiResponse(200, address, 'Address updated'));
+    } catch (e: any) {
+      res.status(e.statusCode || 400).json({ message: e.message });
+    }
+  };
+
+  deleteAddress = async (req: Request, res: Response) => {
+    try {
+      await this.storeService.deleteAddress(req.customer!.id, req.params.id);
+      res.json(new ApiResponse(200, null, 'Address deleted'));
+    } catch (e: any) {
+      res.status(e.statusCode || 400).json({ message: e.message });
+    }
   };
 
   getCategories = async (_req: Request, res: Response) => {

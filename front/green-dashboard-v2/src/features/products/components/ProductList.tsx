@@ -143,7 +143,10 @@ export function ProductList({ products, onEdit, onDelete, onAdd, isLoading }: Pr
       {/* Product List */}
       <div className="grid gap-4">
         {filteredProducts.map(product => {
-          const displayImages = getDisplayableImageUrls(product.imageUrls, product.images);
+          const displayImages = getDisplayableImageUrls(
+            Array.isArray(product.imageUrls) ? (product.imageUrls as string[]) : undefined,
+            Array.isArray(product.images) ? (product.images as string[]) : undefined
+          );
           return (
           <div
             key={product._id}

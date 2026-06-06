@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
+import { isAuthenticated } from '../../middleware/auth.middleware';
 
 const router = Router();
 
 const customerService = new CustomerService();
 const customerController = new CustomerController(customerService);
+
+router.use(isAuthenticated);
 
 router.post('/', customerController.createCustomer.bind(customerController));
 router.get('/', customerController.getAllCustomers.bind(customerController));

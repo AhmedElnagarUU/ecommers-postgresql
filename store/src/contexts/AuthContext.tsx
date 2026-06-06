@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { setAuthToken } from '@/lib/api';
+import { setAuthToken, setUnauthorizedHandler } from '@/lib/api';
 import { storeApi } from '@/lib/services';
 import type { Customer } from '@/lib/types';
 
@@ -10,6 +10,12 @@ interface AuthContextValue {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -22,14 +28,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    const clearStoredAuth = () => {
+      setToken(null);
+      setCustomer(null);
+      setAuthToken(null);
+      localStorage.removeItem('store_token');
+      localStorage.removeItem('store_customer');
+    };
+
+    setUnauthorizedHandler(clearStoredAuth);
     const saved = localStorage.getItem('store_token');
     const savedCustomer = localStorage.getItem('store_customer');
-    if (saved) {
+
+    const hydrate = async () => {
+      if (!saved) {
+        if (mounted) setIsLoading(false);
+        return;
+      }
+
       setToken(saved);
       setAuthToken(saved);
-      if (savedCustomer) setCustomer(JSON.parse(savedCustomer));
-    }
-    setIsLoading(false);
+      if (savedCustomer) {
+        try {
+          setCustomer(JSON.parse(savedCustomer));
+        } catch {
+          localStorage.removeItem('store_customer');
+        }
+      }
+
+      try {
+        const freshCustomer = await storeApi.getMe();
+        if (!mounted) return;
+        setCustomer(freshCustomer);
+        localStorage.setItem('store_customer', JSON.stringify(freshCustomer));
+      } catch {
+        clearStoredAuth();
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      mounted = false;
+      setUnauthorizedHandler(null);
+    };
   }, []);
 
   const persist = (newToken: string, newCustomer: Customer) => {
@@ -50,6 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persist(result.token, result.customer);
   };
 
+  const updateProfile = async (data: {
+    name?: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => {
+    const result = await storeApi.updateProfile(data);
+    persist(result.token, result.customer);
+  };
+
   const logout = () => {
     setToken(null);
     setCustomer(null);
@@ -59,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ customer, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ customer, token, login, register, updateProfile, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

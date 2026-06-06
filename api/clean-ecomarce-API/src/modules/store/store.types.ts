@@ -24,3 +24,22 @@ export interface LoginDto {
   email: string;
   password: string;
 }
+
+export interface UpdateProfileDto {
+  name?: string;
+  phone?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
+
+export interface CustomerAddressDto {
+  label?: string;
+  recipientName?: string;
+  phone: string;
+  street: string;
+  city: string;
+  state?: string;
+  zipCode: string;
+  country: string;
+  isDefault?: boolean;
+}

@@ -4,7 +4,14 @@ import { prisma } from '../../config/database';
 import { ProductService, PRODUCT_INCLUDE, toProductPlain } from '../product/product.service';
 import { ApiError } from '../../utils/ApiError';
 import { normalizeSelections } from '../product/product.variant.utils';
-import type { LoginDto, RegisterDto, StoreCart, StoreCartItem } from './store.types';
+import type {
+  CustomerAddressDto,
+  LoginDto,
+  RegisterDto,
+  StoreCart,
+  StoreCartItem,
+  UpdateProfileDto,
+} from './store.types';
 import { PixelService } from '../pixel/pixel.service';
 import { sendMetaConversionEvent } from '../../utils/metaConversionsApi';
 
@@ -59,6 +66,155 @@ export class StoreService {
 
     const token = this.signToken(customer);
     return { token, customer: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone } };
+  }
+
+  async getProfile(customerId: string) {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        createdAt: true,
+        updatedAt: true,
+        addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] },
+      },
+    });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+    return customer;
+  }
+
+  async updateProfile(customerId: string, dto: UpdateProfileDto) {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const data: any = {};
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      if (!name) throw new ApiError(400, 'Name is required');
+      data.name = name;
+    }
+    if (dto.phone !== undefined) {
+      data.phone = dto.phone.trim() || null;
+    }
+    if (dto.newPassword) {
+      if (customer.password) {
+        if (!dto.currentPassword) throw new ApiError(400, 'Current password is required');
+        const valid = await bcrypt.compare(dto.currentPassword, customer.password);
+        if (!valid) throw new ApiError(400, 'Current password is incorrect');
+      }
+      if (dto.newPassword.length < 6) throw new ApiError(400, 'New password must be at least 6 characters');
+      data.password = await bcrypt.hash(dto.newPassword, 10);
+    }
+
+    await prisma.customer.update({ where: { id: customerId }, data });
+    const updated = await this.getProfile(customerId);
+    return {
+      token: this.signToken(updated),
+      customer: updated,
+    };
+  }
+
+  async getAddresses(customerId: string) {
+    return prisma.customerAddress.findMany({
+      where: { customerId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createAddress(customerId: string, dto: CustomerAddressDto) {
+    const count = await prisma.customerAddress.count({ where: { customerId } });
+    const data = this.addressPayload(dto);
+    const makeDefault = dto.isDefault ?? count === 0;
+
+    return prisma.$transaction(async (tx) => {
+      if (makeDefault) {
+        await tx.customerAddress.updateMany({
+          where: { customerId },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.customerAddress.create({
+        data: {
+          ...data,
+          customerId,
+          isDefault: makeDefault,
+        },
+      });
+    });
+  }
+
+  async updateAddress(customerId: string, addressId: string, dto: Partial<CustomerAddressDto>) {
+    const existing = await prisma.customerAddress.findFirst({
+      where: { id: addressId, customerId },
+    });
+    if (!existing) throw new ApiError(404, 'Address not found');
+
+    const data = this.addressPayload(dto, true);
+    if (dto.isDefault !== undefined) data.isDefault = dto.isDefault;
+
+    return prisma.$transaction(async (tx) => {
+      if (dto.isDefault) {
+        await tx.customerAddress.updateMany({
+          where: { customerId, id: { not: addressId } },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.customerAddress.update({
+        where: { id: addressId },
+        data,
+      });
+    });
+  }
+
+  async deleteAddress(customerId: string, addressId: string) {
+    const existing = await prisma.customerAddress.findFirst({
+      where: { id: addressId, customerId },
+    });
+    if (!existing) throw new ApiError(404, 'Address not found');
+
+    await prisma.customerAddress.delete({ where: { id: addressId } });
+
+    if (existing.isDefault) {
+      const nextAddress = await prisma.customerAddress.findFirst({
+        where: { customerId },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (nextAddress) {
+        await prisma.customerAddress.update({
+          where: { id: nextAddress.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+  }
+
+  private addressPayload(dto: Partial<CustomerAddressDto>, partial = false) {
+    const requiredFields: Array<keyof CustomerAddressDto> = ['phone', 'street', 'city', 'zipCode', 'country'];
+    const data: any = {};
+
+    for (const field of requiredFields) {
+      const value = dto[field];
+      if (value !== undefined) {
+        const trimmed = String(value).trim();
+        if (!trimmed) throw new ApiError(400, `${field} is required`);
+        data[field] = trimmed;
+      } else if (!partial) {
+        throw new ApiError(400, `${field} is required`);
+      }
+    }
+
+    for (const field of ['label', 'recipientName', 'state'] as const) {
+      if (dto[field] !== undefined) {
+        const trimmed = String(dto[field] ?? '').trim();
+        data[field] = trimmed || null;
+      }
+    }
+
+    return data;
   }
 
   async getCategories() {
@@ -250,15 +406,40 @@ export class StoreService {
     dto: {
       items: any[];
       shippingAddress: any;
+      addressId?: string;
       guest?: { name: string; email: string; phone?: string };
       paymentMethod?: string;
     }
   ) {
-    const customer = customerId
+    let customer = customerId
       ? await prisma.customer.findUnique({ where: { id: customerId } })
       : await this.findOrCreateGuestCustomer(dto.guest!);
 
     if (!customer) throw new ApiError(400, 'Customer information required');
+
+    let shippingAddress = dto.shippingAddress;
+    if (dto.addressId) {
+      if (!customerId) throw new ApiError(400, 'Saved addresses require login');
+      const savedAddress = await prisma.customerAddress.findFirst({
+        where: { id: dto.addressId, customerId },
+      });
+      if (!savedAddress) throw new ApiError(404, 'Address not found');
+      shippingAddress = {
+        street: savedAddress.street,
+        city: savedAddress.city,
+        state: savedAddress.state || '',
+        zipCode: savedAddress.zipCode,
+        country: savedAddress.country,
+        phone: savedAddress.phone,
+      };
+    }
+
+    if (customerId && shippingAddress?.phone && !customer.phone) {
+      customer = await prisma.customer.update({
+        where: { id: customerId },
+        data: { phone: shippingAddress.phone },
+      });
+    }
 
     const preparedItems: Array<{
       productId: string;
@@ -321,8 +502,8 @@ export class StoreService {
                 : undefined,
             })),
           },
-          shippingAddress: dto.shippingAddress
-            ? { create: dto.shippingAddress }
+          shippingAddress: shippingAddress
+            ? { create: shippingAddress }
             : undefined,
         },
       });
