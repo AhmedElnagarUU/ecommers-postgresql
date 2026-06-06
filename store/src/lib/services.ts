@@ -1,5 +1,5 @@
 import { api, ApiEnvelope } from './api';
-import type { Cart, CartItem, Category, Customer, Order, Product } from './types';
+import type { Cart, CartItem, Category, Customer, CustomerAddress, Order, Product } from './types';
 import type { PublicPixel } from './pixel-types';
 import {
   normalizeCart,
@@ -34,6 +34,40 @@ export const storeApi = {
   async login(body: { email: string; password: string }) {
     const { data } = await api.post<ApiEnvelope<{ token: string; customer: Customer }>>('/auth/login', body);
     return data.data;
+  },
+
+  async getMe() {
+    const { data } = await api.get<ApiEnvelope<Customer>>('/auth/me');
+    return data.data;
+  },
+
+  async updateProfile(body: {
+    name?: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) {
+    const { data } = await api.patch<ApiEnvelope<{ token: string; customer: Customer }>>('/auth/me', body);
+    return data.data;
+  },
+
+  async getAddresses() {
+    const { data } = await api.get<ApiEnvelope<CustomerAddress[]>>('/addresses');
+    return data.data ?? [];
+  },
+
+  async createAddress(body: Omit<CustomerAddress, 'id' | 'isDefault'> & { isDefault?: boolean }) {
+    const { data } = await api.post<ApiEnvelope<CustomerAddress>>('/addresses', body);
+    return data.data;
+  },
+
+  async updateAddress(id: string, body: Partial<Omit<CustomerAddress, 'id'>>) {
+    const { data } = await api.put<ApiEnvelope<CustomerAddress>>(`/addresses/${id}`, body);
+    return data.data;
+  },
+
+  async deleteAddress(id: string) {
+    await api.delete(`/addresses/${id}`);
   },
 
   async getCart() {

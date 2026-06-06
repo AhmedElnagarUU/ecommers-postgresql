@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -10,10 +10,11 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { EmptyCart } from '@/features/cart/components/EmptyCart';
 import { CheckoutSummary } from '@/features/checkout/components/CheckoutSummary';
 import { storeApi } from '@/lib/services';
+import type { CustomerAddress } from '@/lib/types';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Container } from '@/shared/ui/Container';
-import { Input } from '@/shared/ui/Input';
+import { Input, Select } from '@/shared/ui/Input';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 export default function CheckoutPage() {
@@ -32,10 +33,58 @@ export default function CheckoutPage() {
     zipCode: '',
     country: '',
   });
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      name: customer?.name || current.name,
+      email: customer?.email || current.email,
+      phone: customer?.phone || current.phone,
+    }));
+  }, [customer]);
+
+  useEffect(() => {
+    if (!token) return;
+    storeApi
+      .getAddresses()
+      .then((savedAddresses) => {
+        setAddresses(savedAddresses);
+        const defaultAddress = savedAddresses.find((address) => address.isDefault) || savedAddresses[0];
+        if (defaultAddress) {
+          applyAddress(defaultAddress);
+        }
+      })
+      .catch(() => setAddresses([]));
+  }, [token]);
+
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (['phone', 'street', 'city', 'state', 'zipCode', 'country'].includes(e.target.name)) {
+      setSelectedAddressId('');
+    }
     setForm((current) => ({ ...current, [e.target.name]: e.target.value }));
+  };
+
+  const applyAddress = (address: CustomerAddress) => {
+    setSelectedAddressId(address.id);
+    setForm((current) => ({
+      ...current,
+      phone: address.phone || current.phone,
+      street: address.street,
+      city: address.city,
+      state: address.state || '',
+      zipCode: address.zipCode,
+      country: address.country,
+    }));
+  };
+
+  const onAddressSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const addressId = e.target.value;
+    setSelectedAddressId(addressId);
+    const address = addresses.find((item) => item.id === addressId);
+    if (address) applyAddress(address);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -60,6 +109,10 @@ export default function CheckoutPage() {
         },
         paymentMethod: 'cod',
       };
+
+      if (selectedAddressId) {
+        body.addressId = selectedAddressId;
+      }
 
       if (!token) {
         body.guest = {
@@ -110,6 +163,16 @@ export default function CheckoutPage() {
                 <Input name="name" value={form.name} onChange={onChange} placeholder={t('checkout.name')} required />
                 <Input name="email" type="email" value={form.email} onChange={onChange} placeholder={t('checkout.email')} required />
               </>
+            )}
+            {addresses.length > 0 && (
+              <Select value={selectedAddressId} onChange={onAddressSelect}>
+                <option value="">Use a new delivery address</option>
+                {addresses.map((address) => (
+                  <option key={address.id} value={address.id}>
+                    {address.label || 'Saved address'} - {[address.city, address.country].filter(Boolean).join(', ')}
+                  </option>
+                ))}
+              </Select>
             )}
             <Input name="phone" value={form.phone} onChange={onChange} placeholder={t('checkout.phone')} />
             <Input name="street" value={form.street} onChange={onChange} placeholder={t('checkout.street')} required />

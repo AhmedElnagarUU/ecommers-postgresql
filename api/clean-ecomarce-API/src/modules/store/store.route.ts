@@ -17,6 +17,11 @@ router.get('/orders/track', controller.trackOrder);
 router.post('/auth/register', controller.register);
 router.post('/auth/login', controller.login);
 router.get('/auth/me', isCustomerAuth, controller.me);
+router.patch('/auth/me', isCustomerAuth, controller.updateProfile);
+router.get('/addresses', isCustomerAuth, controller.getAddresses);
+router.post('/addresses', isCustomerAuth, controller.createAddress);
+router.put('/addresses/:id', isCustomerAuth, controller.updateAddress);
+router.delete('/addresses/:id', isCustomerAuth, controller.deleteAddress);
 
 // Cart (logged-in customers)
 router.get('/cart', isCustomerAuth, controller.getCart);

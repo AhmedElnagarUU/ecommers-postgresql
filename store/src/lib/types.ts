@@ -51,6 +51,20 @@ export interface Customer {
   name: string;
   email: string;
   phone?: string;
+  addresses?: CustomerAddress[];
+}
+
+export interface CustomerAddress {
+  id: string;
+  label?: string | null;
+  recipientName?: string | null;
+  phone: string;
+  street: string;
+  city: string;
+  state?: string | null;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
 }
 
 export interface Order {

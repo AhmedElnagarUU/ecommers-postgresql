@@ -1,18 +1,9 @@
 import React from 'react';
 import { Mail, Phone, MapPin } from 'lucide-react';
-
-interface Customer {
-  _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  location: string;
-  totalOrders: number;
-  totalSpent: number;
-}
+import type { DashboardCustomer } from '../api/customer.api';
 
 interface CustomersTableProps {
-  customers: Customer[];
+  customers: DashboardCustomer[];
 }
 
 export function CustomersTable({ customers }: CustomersTableProps) {
@@ -40,7 +31,13 @@ export function CustomersTable({ customers }: CustomersTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-mintlify-accent/10">
-            {customers.map((customer) => (
+            {customers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-10 text-center text-sm text-mintlify-text-secondary">
+                  No customers found yet.
+                </td>
+              </tr>
+            ) : customers.map((customer) => (
               <tr key={customer._id} 
                 className="hover:bg-mintlify-hover/20">
                 <td className="px-6 py-4">
