@@ -10,6 +10,9 @@ const shippingController = new ShippingController(shippingService);
 router.use(isAuthenticated);
 router.use(isAdmin);
 
+router.get('/world/locations', shippingController.getWorldLocations);
+router.get('/world/countries', shippingController.getWorldCountries);
+router.get('/world/cities', shippingController.getWorldCities);
 router.get('/zones/quote', shippingController.quoteZone);
 
 router
