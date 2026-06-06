@@ -36,7 +36,10 @@ export function ProductForm({ initialData, onSubmit, onCancel, isLoading }: Prod
 
   const [imagePreviews, setImagePreviews] = useState<{ file: File | null; preview: string }[]>(
     () =>
-      getDisplayableImageUrls(initialData?.imageUrls, initialData?.images).map((url) => ({
+      getDisplayableImageUrls(
+        Array.isArray(initialData?.imageUrls) ? (initialData.imageUrls as string[]) : undefined,
+        Array.isArray(initialData?.images) ? (initialData.images as string[]) : undefined
+      ).map((url) => ({
         file: null,
         preview: url,
       }))

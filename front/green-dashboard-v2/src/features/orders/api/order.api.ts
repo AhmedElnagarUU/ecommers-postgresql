@@ -12,7 +12,7 @@ export const ordersService = {
     paymentStatus?: string;
   }) {
     const { data } = await api.get<OrdersResponse>('/orders', { params });
-    return normalizeOrders((data.data ?? []) as Record<string, unknown>[]);
+    return normalizeOrders((data.data ?? []) as unknown as Record<string, unknown>[]);
   },
 
   async updateOrderStatus(orderId: string, status: OrderStatus) {
@@ -20,7 +20,7 @@ export const ordersService = {
       `/orders/${orderId}/status`,
       { status: toApiStatus(status) }
     );
-    return normalizeOrder(data.data);
+    return normalizeOrder(data.data as unknown as Record<string, unknown>);
   },
 
   async deleteOrder(orderId: string) {

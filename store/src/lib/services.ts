@@ -13,17 +13,17 @@ import {
 export const storeApi = {
   async getCategories() {
     const { data } = await api.get<ApiEnvelope<Category[]>>('/categories');
-    return normalizeCategories((data.data ?? []) as Record<string, unknown>[]);
+    return normalizeCategories((data.data ?? []) as unknown as Record<string, unknown>[]);
   },
 
   async getProducts(params?: Record<string, string>) {
     const { data } = await api.get<ApiEnvelope<Product[]>>('/products', { params });
-    return normalizeProducts((data.data ?? []) as Record<string, unknown>[]);
+    return normalizeProducts((data.data ?? []) as unknown as Record<string, unknown>[]);
   },
 
   async getProduct(id: string) {
     const { data } = await api.get<ApiEnvelope<Product>>(`/products/${id}`);
-    return normalizeProduct(data.data as Record<string, unknown>);
+    return normalizeProduct(data.data as unknown as Record<string, unknown>);
   },
 
   async register(body: { name: string; email: string; password: string; phone?: string }) {
@@ -72,29 +72,29 @@ export const storeApi = {
 
   async getCart() {
     const { data } = await api.get<ApiEnvelope<Cart>>('/cart');
-    return normalizeCart(data.data as Record<string, unknown>);
+    return normalizeCart(data.data as unknown as Record<string, unknown>);
   },
 
   async updateCart(items: Array<{ productId: string; quantity: number; selectedVariants?: Record<string, string> }>) {
     const { data } = await api.put<ApiEnvelope<Cart>>('/cart', { items });
-    return normalizeCart(data.data as Record<string, unknown>);
+    return normalizeCart(data.data as unknown as Record<string, unknown>);
   },
 
   async createOrder(body: Record<string, unknown>) {
     const { data } = await api.post<ApiEnvelope<Order>>('/orders', body);
-    return normalizeOrder(data.data as Record<string, unknown>);
+    return normalizeOrder(data.data as unknown as Record<string, unknown>);
   },
 
   async getMyOrders() {
     const { data } = await api.get<ApiEnvelope<Order[]>>('/orders');
-    return normalizeOrders((data.data ?? []) as Record<string, unknown>[]);
+    return normalizeOrders((data.data ?? []) as unknown as Record<string, unknown>[]);
   },
 
   async trackOrder(email: string, orderNumber: string) {
     const { data } = await api.get<ApiEnvelope<Order>>('/orders/track', {
       params: { email, orderNumber },
     });
-    return normalizeOrder(data.data as Record<string, unknown>);
+    return normalizeOrder(data.data as unknown as Record<string, unknown>);
   },
 
   async getPixels() {

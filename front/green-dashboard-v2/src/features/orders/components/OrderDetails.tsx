@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Order, OrderStatus } from '@/features/orders/api/order.api';
-import { ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { formatVariantLabel } from '@/utils/variant.utils';
 
 interface OrderDetailsProps {
@@ -18,9 +18,7 @@ export function OrderDetails({ order, onBack, onStatusChange }: OrderDetailsProp
         return <Clock className="w-5 h-5 text-yellow-400" />;
       case 'processing':
         return <Package className="w-5 h-5 text-blue-400" />;
-      case 'shipped':
-        return <Truck className="w-5 h-5 text-purple-400" />;
-      case 'delivered':
+      case 'completed':
         return <CheckCircle className="w-5 h-5 text-green-400" />;
       case 'cancelled':
         return <XCircle className="w-5 h-5 text-red-400" />;
@@ -108,12 +106,12 @@ export function OrderDetails({ order, onBack, onStatusChange }: OrderDetailsProp
           {order.items.map((item, index) => {
             const itemName =
               'name' in item
-                ? item.name
+                ? String(item.name)
                 : typeof item.product === 'object'
                   ? item.product?.name
                   : 'Product';
             const lineTotal =
-              'total' in item ? item.total : item.price * item.quantity;
+              'total' in item ? Number(item.total) || 0 : item.price * item.quantity;
             const variantLabel = formatVariantLabel(item.selectedVariants);
 
             return (

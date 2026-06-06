@@ -41,13 +41,21 @@ export function normalizeCategories(raw: Record<string, unknown>[]): Category[] 
 }
 
 export function normalizeOrder(raw: Record<string, unknown>): Order {
-  return withLegacyId({
+  const base = withLegacyId(raw);
+  return {
+    ...base,
     ...raw,
     orderNumber: String(raw.orderNumber ?? ''),
     totalAmount: Number(raw.totalAmount) || 0,
     status: String(raw.status ?? ''),
     paymentStatus: String(raw.paymentStatus ?? ''),
-  }) as Order;
+    items: Array.isArray(raw.items) ? (raw.items as Order['items']) : [],
+    shippingAddress:
+      typeof raw.shippingAddress === 'object' && raw.shippingAddress !== null
+        ? (raw.shippingAddress as Order['shippingAddress'])
+        : {},
+    createdAt: String(raw.createdAt ?? ''),
+  };
 }
 
 export function normalizeOrders(raw: Record<string, unknown>[]): Order[] {

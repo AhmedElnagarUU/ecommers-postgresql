@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const { admin } = await authService.login({ email, password });
       
-      if (admin.role !== 'admin' && admin.role !== 'super_admin') {
+      if (!['ADMIN', 'SUPER_ADMIN', 'admin', 'super_admin'].includes(admin.role)) {
         throw new Error('Access denied. Admin privileges required.');
       }
 
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name,
         email,
         password,
-        role: 'super_admin'
+        role: 'SUPER_ADMIN'
       });
       setAdmin(admin);
       router.push('/dashboard');
