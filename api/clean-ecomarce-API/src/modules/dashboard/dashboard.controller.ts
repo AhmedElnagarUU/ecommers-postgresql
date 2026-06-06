@@ -5,7 +5,7 @@ import { ApiResponse } from '../../utils/ApiResponse';
 
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
-
+    
   getStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.dashboardService.getStats();
     return res.status(200).json(new ApiResponse(200, stats, 'Dashboard stats retrieved successfully'));

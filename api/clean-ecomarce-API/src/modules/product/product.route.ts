@@ -3,6 +3,11 @@ import { ProductController } from './product.controller';
 import { isAuthenticated, isAdmin } from '../../middleware/auth.middleware';
 import { upload, handleProductImageUpload } from '../../middleware/upload.middleware';
 import { ProductService } from './product.service';
+import {
+  setOptionTypes,
+  getVariantsByProduct,
+  bulkUpdateVariants,
+} from '../variant/variant.controller';
 
 const router = Router();
 
@@ -30,5 +35,10 @@ router
     productController.updateProduct.bind(productController)
   )
   .delete(productController.deleteProduct.bind(productController));
+
+// ── Variant sub-resources ────────────────────────────────────────────────────
+router.put('/:id/options', setOptionTypes);
+router.get('/:id/variants', getVariantsByProduct);
+router.put('/:id/variants/bulk', bulkUpdateVariants);
 
 export default router;

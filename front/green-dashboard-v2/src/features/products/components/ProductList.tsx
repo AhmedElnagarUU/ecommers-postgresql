@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { productService } from '../api/product.api';
 import type { Product } from '../types';
-import { Edit, Trash, Search, Plus } from 'lucide-react';
+import { Edit, Trash, Search, Plus, Layers } from 'lucide-react';
 import { categoryService } from '@/features/categories/api/category.api';
 import { ProductImage } from './ProductImage';
 import { getDisplayableImageUrls } from '@/shared/lib/product-image';
@@ -18,6 +19,7 @@ interface ProductListProps {
 }
 
 export function ProductList({ products, onEdit, onDelete, onAdd, isLoading }: ProductListProps) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'stock'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -196,6 +198,14 @@ export function ProductList({ products, onEdit, onDelete, onAdd, isLoading }: Pr
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <button
+                  title="Manage Variants"
+                  onClick={() => router.push(`/dashboard/products/${product._id}/edit`)}
+                  className="p-2 text-mintlify-text-secondary hover:text-mintlify-accent 
+                    hover:bg-mintlify-accent/10 rounded-lg transition-colors"
+                >
+                  <Layers className="w-5 h-5" />
+                </button>
                 <button
                   onClick={() => onEdit(product)}
                   className="p-2 text-mintlify-text-secondary hover:text-mintlify-accent 

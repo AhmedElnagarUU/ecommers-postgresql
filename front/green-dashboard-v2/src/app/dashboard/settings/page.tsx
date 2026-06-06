@@ -4,6 +4,8 @@ import React from 'react';
 import { GeneralSettings } from '@/features/settings/components/GeneralSettings';
 import { SecuritySettings } from '@/features/settings/components/SecuritySettings';
 import { IntegrationSettings } from '@/features/settings/components/IntegrationSettings';
+import Link from 'next/link';
+import { ChevronRight, Crosshair } from 'lucide-react';
 
 export default function SettingsPage() {
   const [loading, setLoading] = React.useState(true);

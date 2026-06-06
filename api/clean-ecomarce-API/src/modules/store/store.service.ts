@@ -5,6 +5,8 @@ import { ProductService, PRODUCT_INCLUDE, toProductPlain } from '../product/prod
 import { ApiError } from '../../utils/ApiError';
 import { normalizeSelections } from '../product/product.variant.utils';
 import type { LoginDto, RegisterDto, StoreCart, StoreCartItem } from './store.types';
+import { PixelService } from '../pixel/pixel.service';
+import { sendMetaConversionEvent } from '../../utils/metaConversionsApi';
 
 const CART_INCLUDE = {
   items: {
@@ -17,6 +19,7 @@ const CART_INCLUDE = {
 
 export class StoreService {
   private productService = new ProductService();
+  private pixelService = new PixelService()
 
   private signToken(customer: { id: string; email: string; name: string }) {
     const secret = process.env.CUSTOMER_JWT_SECRET || process.env.SESSION_SECRET || 'store-secret';

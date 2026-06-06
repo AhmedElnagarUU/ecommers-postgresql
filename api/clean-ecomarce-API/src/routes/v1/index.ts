@@ -8,6 +8,8 @@ import cleanupRoutes from '../../modules/cleanup/cleanup.route';
 import cartRoutes from '../../modules/cart/cart.route';
 import customerRoutes from '../../modules/customer/customer.route';
 import storeRoutes from '../../modules/store/store.route';
+import variantRoutes from '../../modules/variant/variant.route';
+import shippingRoutes from '../../modules/shipping/shipping.route';
 // import paymentRoutes from '../../modules/payment/infra/payment.routes';
 
 const router = express.Router();
@@ -43,6 +45,12 @@ router.use('/cart', cartRoutes);
 
 // Public storefront API
 router.use('/store', storeRoutes);
+
+// Individual variant endpoints
+router.use('/variants', variantRoutes);
+
+// Shipping management endpoints
+router.use('/shipping', shippingRoutes);
 
 
 // Payment routes

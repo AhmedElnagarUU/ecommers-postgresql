@@ -27,9 +27,8 @@ class AuthService {
 
   checkSession(): boolean {
     if (!this.isClient()) return false;
-    const hasAuthCookie = !!Cookies.get(this.AUTH_COOKIE);
     const hasAdmin = !!localStorage.getItem(this.ADMIN_KEY);
-    return hasAuthCookie && hasAdmin;
+    return hasAdmin;
   }
 
 

@@ -8,6 +8,7 @@ import {
   UserCog,
   Bell,
   Tag,
+  Truck,
   LucideIcon,
 } from 'lucide-react';
 
@@ -22,6 +23,7 @@ export const menuItems: MenuItem[] = [
   { icon: Package, label: 'Products', href: '/dashboard/products' },
   { icon: Tag, label: 'Categories', href: '/dashboard/categories' },
   { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders' },
+  { icon: Truck, label: 'Shipping', href: '/dashboard/shipping' },
   { icon: Users, label: 'Customers', href: '/dashboard/customers' },
   { icon: BarChart2, label: 'Analytics', href: '/dashboard/analytics' },
   { icon: Bell, label: 'Notifications', href: '/dashboard/notifications' },

@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { redirect, useRouter } from 'next/navigation';
 import { Loading } from '@/shared/ui/Loading';
-import authService, { Admin }  from '@/features/auth/api/auth.api';
+import authService from '@/features/auth/api/auth.api';
 import Sidebar from '@/shared/layout/Sidebar';
 import { Header } from '@/shared/layout/Header';
-import Cookies from 'js-cookie';
-import { dashboardService, DashboardStats } from '@/features/dashboard/api/dashboard.api';
 
 function BackgroundEffects() {
   return (
@@ -31,9 +29,8 @@ function BackgroundEffects() {
   );
 }
 
-function MainContent({ children, dashboard, isSidebarOpen, setSidebarOpen }: {
+function MainContent({ children, isSidebarOpen, setSidebarOpen }: {
   children: React.ReactNode;
-  dashboard: DashboardStats;
   isSidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }) {
@@ -71,58 +68,50 @@ function MainContent({ children, dashboard, isSidebarOpen, setSidebarOpen }: {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    const loadDashboardData = async () => {
+    const validateDashboardAccess = async () => {
       try {
         setIsLoading(true);
         const isAuthed = await authService.validateAuth();
+        console.log('isAuthed', isAuthed);
         if (!isAuthed) {
+          console.log('redirecting to login');
+          // Use replace instead of push to ensure redirect
           router.push('/login');
           return;
         }
-        const data = await dashboardService.getStats();
-        setDashboard(data);
+
+        setIsAuthorized(true);
       } catch (error: any) {
         if (error.response?.status === 401) {
           authService.clearAuth();
-          router.push('/login');
+          router.replace('/login');
         }
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadDashboardData();
+    validateDashboardAccess();
   }, [router]);
 
   const handleLogout = async () => {
     try {
       await authService.logout();
-      setDashboard(null);
-      router.push('/login');
+      setIsAuthorized(false);
+      redirect('/login');
     } catch (error) {
       console.error('Error during logout:', error);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isAuthorized) {
     return <Loading />;
-  }
-
-  if (!dashboard) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-mintlify-bg">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-mintlify-text">Unable to load dashboard data</h2>
-          <p className="text-mintlify-text-secondary mt-2">Please try refreshing the page</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -137,7 +126,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         />
         
         <MainContent 
-          dashboard={dashboard}
           isSidebarOpen={isSidebarOpen}
           setSidebarOpen={setSidebarOpen}
         >

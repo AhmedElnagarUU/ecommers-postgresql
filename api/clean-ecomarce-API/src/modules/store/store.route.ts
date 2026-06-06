@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { StoreController } from './store.controller';
 import { isCustomerAuth, optionalCustomerAuth } from '../../middleware/customer-auth.middleware';
+import pixelRoutes from '../pixel/pixel.route';
+
 
 const router = Router();
 const controller = new StoreController();

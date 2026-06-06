@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -63,6 +62,14 @@ enum NotificationPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
 }
 
 // ─── Store (singleton project settings) ──────────────────────────────────────
@@ -178,6 +185,9 @@ model ProductVariantCombination {
   product    Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   stock      Int?
   price      Float?
+  sku        String?            @unique
+  isActive   Boolean            @default(true)
+  images     String[]
   selections VariantSelection[]
 
   @@index([productId])
@@ -237,6 +247,7 @@ model Order {
   customer        Customer           @relation(fields: [customerId], references: [id])
   items           OrderItem[]
   shippingAddress ShippingAddress?
+  shipment        Shipment?
   totalAmount     Float
   status          OrderStatus        @default(PENDING)
   paymentStatus   OrderPaymentStatus @default(PENDING)
@@ -283,6 +294,64 @@ model ShippingAddress {
   zipCode String
   country String
   phone   String
+}
+
+model ShippingMethod {
+  id               String     @id @default(cuid())
+  name             String
+  description      String?
+  price            Float      @default(0)
+  estimatedDaysMin Int?
+  estimatedDaysMax Int?
+  isActive         Boolean    @default(true)
+  shipments        Shipment[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([isActive])
+}
+
+model ShippingZone {
+  id        String                 @id @default(cuid())
+  name      String
+  price     Float                  @default(0)
+  isActive  Boolean                @default(true)
+  locations ShippingZoneLocation[]
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([isActive])
+}
+
+model ShippingZoneLocation {
+  id      String       @id @default(cuid())
+  zoneId  String
+  zone    ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  country String
+  city    String
+
+  @@unique([country, city])
+  @@index([zoneId])
+}
+
+model Shipment {
+  id               String         @id @default(cuid())
+  orderId          String         @unique
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shippingMethodId String?
+  shippingMethod   ShippingMethod? @relation(fields: [shippingMethodId], references: [id], onDelete: SetNull)
+  carrier          String?
+  trackingNumber   String?
+  status           ShipmentStatus @default(PENDING)
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+  @@index([shippingMethodId])
+  @@index([trackingNumber])
 }
 
 // ─── Payment ─────────────────────────────────────────────────────────────────
