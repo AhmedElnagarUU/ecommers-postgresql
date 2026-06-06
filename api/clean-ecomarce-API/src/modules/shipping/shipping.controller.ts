@@ -6,6 +6,28 @@ import { ShippingService } from './shipping.service';
 export class ShippingController {
   constructor(private readonly shippingService: ShippingService) {}
 
+  getWorldLocations = asyncHandler(async (_req: Request, res: Response) => {
+    const locations = await this.shippingService.getWorldLocations();
+    return res.status(200).json(new ApiResponse(200, locations, 'World locations retrieved successfully'));
+  });
+
+  getWorldCountries = asyncHandler(async (req: Request, res: Response) => {
+    const countries = await this.shippingService.getWorldCountries(
+      req.query.search as string | undefined,
+      req.query.limit ? Number(req.query.limit) : undefined
+    );
+    return res.status(200).json(new ApiResponse(200, countries, 'World countries retrieved successfully'));
+  });
+
+  getWorldCities = asyncHandler(async (req: Request, res: Response) => {
+    const cities = await this.shippingService.getWorldCities(
+      req.query.country as string,
+      req.query.search as string | undefined,
+      req.query.limit ? Number(req.query.limit) : undefined
+    );
+    return res.status(200).json(new ApiResponse(200, cities, 'World cities retrieved successfully'));
+  });
+
   getZones = asyncHandler(async (_req: Request, res: Response) => {
     const zones = await this.shippingService.getZones();
     return res.status(200).json(new ApiResponse(200, zones, 'Shipping zones retrieved successfully'));

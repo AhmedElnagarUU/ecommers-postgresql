@@ -9,6 +9,7 @@ import {
   UpdateShipmentDto,
   UpdateShippingMethodDto,
   UpdateShippingZoneDto,
+  WorldLocationCountry,
 } from './shipping.types';
 
 const SHIPMENT_INCLUDE = {
@@ -37,6 +38,11 @@ const ZONE_INCLUDE = {
   },
 };
 
+const WORLD_LOCATIONS_URL =
+  process.env.WORLD_LOCATIONS_API_URL || 'https://countriesnow.space/api/v0.1/countries';
+const WORLD_LOCATIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+let worldLocationsCache: { expiresAt: number; data: WorldLocationCountry[] } | null = null;
+
 function toValidDate(value?: string | Date): Date | undefined {
   if (!value) return undefined;
   const parsed = new Date(value);
@@ -59,7 +65,81 @@ function normalizeZoneLocations(locations: ShippingZoneLocationInput[] = []) {
     .filter((location) => location.country && location.city);
 }
 
+function filterBySearch(values: string[], search?: string, limit = 250) {
+  const normalizedSearch = (search ?? '').trim().toLowerCase();
+  const filtered = normalizedSearch
+    ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
+    : values;
+  return filtered.slice(0, Math.max(1, Math.min(limit, 1000)));
+}
+
 export class ShippingService {
+  private async fetchWorldLocations(): Promise<WorldLocationCountry[]> {
+    if (worldLocationsCache && worldLocationsCache.expiresAt > Date.now()) {
+      return worldLocationsCache.data;
+    }
+
+    const response = await fetch(WORLD_LOCATIONS_URL);
+    if (!response.ok) {
+      throw new ApiError(502, 'Unable to load world locations');
+    }
+
+    const payload = (await response.json()) as {
+      error?: boolean;
+      data?: Array<{ country?: string; cities?: unknown }>;
+    };
+
+    if (payload.error || !Array.isArray(payload.data)) {
+      throw new ApiError(502, 'World locations API returned an invalid response');
+    }
+
+    const data = payload.data
+      .map((item) => ({
+        country: String(item.country ?? '').trim(),
+        cities: Array.isArray(item.cities)
+          ? item.cities
+              .map((city) => String(city ?? '').trim())
+              .filter(Boolean)
+              .sort((a, b) => a.localeCompare(b))
+          : [],
+      }))
+      .filter((item) => item.country)
+      .sort((a, b) => a.country.localeCompare(b.country));
+
+    worldLocationsCache = {
+      expiresAt: Date.now() + WORLD_LOCATIONS_CACHE_TTL_MS,
+      data,
+    };
+
+    return data;
+  }
+
+  async getWorldLocations() {
+    return this.fetchWorldLocations();
+  }
+
+  async getWorldCountries(search?: string, limit?: number) {
+    const locations = await this.fetchWorldLocations();
+    return filterBySearch(
+      locations.map((location) => location.country),
+      search,
+      limit
+    );
+  }
+
+  async getWorldCities(country: string, search?: string, limit?: number) {
+    const normalizedCountry = (country ?? '').trim();
+    if (!normalizedCountry) throw new ApiError(400, 'country is required');
+
+    const locations = await this.fetchWorldLocations();
+    const location = locations.find(
+      (item) => item.country.toLowerCase() === normalizedCountry.toLowerCase()
+    );
+    if (!location) throw new ApiError(404, 'Country not found');
+
+    return filterBySearch(location.cities, search, limit);
+  }
+
   async getZones() {
     return prisma.shippingZone.findMany({
       include: ZONE_INCLUDE,

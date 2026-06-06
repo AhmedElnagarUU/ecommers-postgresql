@@ -11,6 +11,7 @@ import {
   UpdateShipmentDTO,
   UpdateShippingMethodDTO,
   UpdateShippingZoneDTO,
+  WorldLocationCountry,
 } from '../types';
 
 type OrdersListResponse = {
@@ -26,6 +27,29 @@ type OrdersListResponse = {
 };
 
 export const shippingService = {
+  async getWorldLocations(): Promise<WorldLocationCountry[]> {
+    const response = await api.get<ApiResponse<WorldLocationCountry[]>>('/shipping/world/locations', {
+      withCredentials: true,
+    });
+    return response.data?.data ?? [];
+  },
+
+  async getWorldCountries(search?: string): Promise<string[]> {
+    const response = await api.get<ApiResponse<string[]>>('/shipping/world/countries', {
+      withCredentials: true,
+      params: { search, limit: 300 },
+    });
+    return response.data?.data ?? [];
+  },
+
+  async getWorldCities(country: string, search?: string): Promise<string[]> {
+    const response = await api.get<ApiResponse<string[]>>('/shipping/world/cities', {
+      withCredentials: true,
+      params: { country, search, limit: 1000 },
+    });
+    return response.data?.data ?? [];
+  },
+
   async getZones(): Promise<ShippingZone[]> {
     const response = await api.get<ApiResponse<ShippingZone[]>>('/shipping/zones', {
       withCredentials: true,

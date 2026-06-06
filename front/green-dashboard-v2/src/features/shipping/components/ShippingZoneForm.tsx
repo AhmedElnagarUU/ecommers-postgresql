@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash } from 'lucide-react';
 import { COUNTRIES } from '../lib/countries';
+import { shippingService } from '../api/shipping.api';
 import {
   CreateShippingZoneDTO,
   ShippingZone,
@@ -20,6 +21,9 @@ export function ShippingZoneForm({ initialData, onSubmit, onCancel, isLoading }:
   const [name, setName] = useState(initialData?.name ?? '');
   const [price, setPrice] = useState(initialData?.price ?? 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
+  const [countryOptions, setCountryOptions] = useState<string[]>(COUNTRIES);
+  const [cityOptionsByCountry, setCityOptionsByCountry] = useState<Record<string, string[]>>({});
+  const [loadingCountries, setLoadingCountries] = useState(false);
   const [locations, setLocations] = useState<ShippingZoneLocationInput[]>(
     initialData?.locations?.length
       ? initialData.locations.map((location) => ({
@@ -29,12 +33,67 @@ export function ShippingZoneForm({ initialData, onSubmit, onCancel, isLoading }:
       : [{ country: '', city: '' }]
   );
 
+  useEffect(() => {
+    let mounted = true;
+    setLoadingCountries(true);
+
+    shippingService
+      .getWorldCountries()
+      .then((countries) => {
+        if (mounted && countries.length) setCountryOptions(countries);
+      })
+      .catch(() => {
+        if (mounted) setCountryOptions(COUNTRIES);
+      })
+      .finally(() => {
+        if (mounted) setLoadingCountries(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const uniqueCountries = Array.from(
+      new Set(locations.map((location) => location.country).filter(Boolean))
+    );
+    uniqueCountries.forEach((country) => {
+      void loadCities(country);
+    });
+    // Only run for initial data; country changes load cities directly in handleLocationChange.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadCities = async (country: string) => {
+    if (!country || cityOptionsByCountry[country]) return;
+    try {
+      const cities = await shippingService.getWorldCities(country);
+      setCityOptionsByCountry((prev) => ({ ...prev, [country]: cities }));
+    } catch {
+      setCityOptionsByCountry((prev) => ({ ...prev, [country]: [] }));
+    }
+  };
+
   const handleLocationChange = (
     index: number,
     key: keyof ShippingZoneLocationInput,
     value: string
   ) => {
-    setLocations((prev) => prev.map((loc, idx) => (idx === index ? { ...loc, [key]: value } : loc)));
+    setLocations((prev) =>
+      prev.map((loc, idx) =>
+        idx === index
+          ? {
+              ...loc,
+              [key]: value,
+              ...(key === 'country' ? { city: '' } : {}),
+            }
+          : loc
+      )
+    );
+    if (key === 'country') {
+      void loadCities(value);
+    }
   };
 
   const addLocationRow = () => {
@@ -105,8 +164,8 @@ export function ShippingZoneForm({ initialData, onSubmit, onCancel, isLoading }:
                 onChange={(e) => handleLocationChange(index, 'country', e.target.value)}
                 className="w-full px-4 py-2 bg-mintlify-hover/30 text-mintlify-text rounded-lg focus:outline-none focus:ring-2 focus:ring-mintlify-accent/50"
               >
-                <option value="">Select country</option>
-                {COUNTRIES.map((country) => (
+                <option value="">{loadingCountries ? 'Loading countries...' : 'Select country'}</option>
+                {countryOptions.map((country) => (
                   <option key={country} value={country}>
                     {country}
                   </option>
@@ -116,10 +175,16 @@ export function ShippingZoneForm({ initialData, onSubmit, onCancel, isLoading }:
                 type="text"
                 required
                 placeholder="City"
+                list={`shipping-zone-cities-${index}`}
                 value={location.city}
                 onChange={(e) => handleLocationChange(index, 'city', e.target.value)}
                 className="w-full px-4 py-2 bg-mintlify-hover/30 text-mintlify-text rounded-lg focus:outline-none focus:ring-2 focus:ring-mintlify-accent/50"
               />
+              <datalist id={`shipping-zone-cities-${index}`}>
+                {(cityOptionsByCountry[location.country] ?? []).map((city) => (
+                  <option key={`${location.country}-${city}`} value={city} />
+                ))}
+              </datalist>
               <button
                 type="button"
                 onClick={() => removeLocationRow(index)}

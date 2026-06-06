@@ -37,3 +37,8 @@ export interface CreateShippingZoneDto {
 }
 
 export interface UpdateShippingZoneDto extends Partial<CreateShippingZoneDto> {}
+
+export interface WorldLocationCountry {
+  country: string;
+  cities: string[];
+}
