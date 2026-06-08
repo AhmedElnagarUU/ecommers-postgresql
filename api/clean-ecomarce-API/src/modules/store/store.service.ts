@@ -14,6 +14,9 @@ import type {
 } from './store.types';
 import { PixelService } from '../pixel/pixel.service';
 import { sendMetaConversionEvent } from '../../utils/metaConversionsApi';
+import { getCustomerJwtSecret } from '../../utils/jwt-secret';
+import { generateOrderNumber } from '../../utils/order-number';
+import { onOrderPlaced } from '../../services/order-events.service';
 
 const CART_INCLUDE = {
   items: {
@@ -29,7 +32,7 @@ export class StoreService {
   private pixelService = new PixelService()
 
   private signToken(customer: { id: string; email: string; name: string }) {
-    const secret = process.env.CUSTOMER_JWT_SECRET || process.env.SESSION_SECRET || 'store-secret';
+    const secret = getCustomerJwtSecret();
     return jwt.sign(
       { id: customer.id, email: customer.email, name: customer.name },
       secret,
@@ -472,14 +475,22 @@ export class StoreService {
         price,
         selectedVariants: Object.keys(selectedVariants).length ? selectedVariants : undefined,
       });
-      await this.productService.decrementStock(dbProduct.id, quantity, selectedVariants);
     }
 
     const totalAmount = preparedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
     const order = await prisma.$transaction(async (tx) => {
-      const count = await tx.order.count();
-      const orderNumber = `ORD${String(count + 1).padStart(6, '0')}`;
+      for (const item of preparedItems) {
+        await this.productService.decrementStock(
+          item.productId,
+          item.quantity,
+          item.selectedVariants,
+          tx
+        );
+      }
+
+      const orderNumber = await generateOrderNumber(tx);
+
       return await tx.order.create({
         data: {
           orderNumber,
@@ -506,6 +517,9 @@ export class StoreService {
             ? { create: shippingAddress }
             : undefined,
         },
+        include: {
+          customer: { select: { id: true, name: true, email: true } },
+        },
       });
     });
 
@@ -520,6 +534,7 @@ export class StoreService {
     }
 
     void this.fireMetaPurchaseEvents(order, customer, dto);
+    void onOrderPlaced(order);
 
     return order;
   }

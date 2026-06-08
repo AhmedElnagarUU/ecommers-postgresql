@@ -119,7 +119,44 @@ Please login to the admin dashboard to view the complete order details.
 
     return this.sendAdminNotification(subject, text, html);
   }
+
+  async sendOrderConfirmationEmail(data: {
+    to: string;
+    customerName: string;
+    orderNumber: string;
+    totalAmount: number;
+  }): Promise<boolean> {
+    const subject = `Order Confirmation — ${data.orderNumber}`;
+    const text = `Hi ${data.customerName},\n\nThank you for your order ${data.orderNumber}.\nTotal: $${data.totalAmount.toFixed(2)}\n\nWe'll notify you when your order status changes.`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Thank you for your order!</h2>
+        <p>Hi ${data.customerName},</p>
+        <p>Your order <strong>${data.orderNumber}</strong> has been received.</p>
+        <p><strong>Total:</strong> $${data.totalAmount.toFixed(2)}</p>
+        <p>We'll notify you when your order status changes.</p>
+      </div>
+    `;
+    return this.sendEmail({ to: data.to, subject, text, html });
+  }
+
+  async sendOrderStatusEmail(data: {
+    to: string;
+    customerName: string;
+    orderNumber: string;
+    status: string;
+  }): Promise<boolean> {
+    const subject = `Order ${data.orderNumber} — ${data.status}`;
+    const text = `Hi ${data.customerName},\n\nYour order ${data.orderNumber} is now ${data.status}.`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Order status update</h2>
+        <p>Hi ${data.customerName},</p>
+        <p>Your order <strong>${data.orderNumber}</strong> is now <strong>${data.status}</strong>.</p>
+      </div>
+    `;
+    return this.sendEmail({ to: data.to, subject, text, html });
+  }
 }
 
-// Create and export a singleton instance
 export const emailService = new EmailService(); 

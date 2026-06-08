@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getCustomerJwtSecret } from '../utils/jwt-secret';
 
 declare global {
   namespace Express {
@@ -13,6 +14,11 @@ declare global {
   }
 }
 
+function verifyCustomerToken(token: string) {
+  const secret = getCustomerJwtSecret();
+  return jwt.verify(token, secret) as { id: string; email: string; name: string };
+}
+
 export const isCustomerAuth = (req: Request, res: Response, next: NextFunction) => {
   const header = req.headers.authorization;
   const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
@@ -22,9 +28,7 @@ export const isCustomerAuth = (req: Request, res: Response, next: NextFunction) 
   }
 
   try {
-    const secret = process.env.CUSTOMER_JWT_SECRET || process.env.SESSION_SECRET || 'store-secret';
-    const payload = jwt.verify(token, secret) as { id: string; email: string; name: string };
-    req.customer = payload;
+    req.customer = verifyCustomerToken(token);
     next();
   } catch {
     return res.status(401).json({ message: 'Invalid or expired token' });
@@ -38,9 +42,7 @@ export const optionalCustomerAuth = (req: Request, res: Response, next: NextFunc
   if (!token) return next();
 
   try {
-    const secret = process.env.CUSTOMER_JWT_SECRET || process.env.SESSION_SECRET || 'store-secret';
-    const payload = jwt.verify(token, secret) as { id: string; email: string; name: string };
-    req.customer = payload;
+    req.customer = verifyCustomerToken(token);
   } catch {
     // ignore invalid token for optional auth
   }

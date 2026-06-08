@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { ApiError } from '../../utils/ApiError';
+import { onShipmentUpdated } from '../../services/order-events.service';
 import {
   CreateShipmentDto,
   CreateShippingMethodDto,
@@ -390,7 +391,7 @@ export class ShippingService {
       throw new ApiError(400, 'Invalid shipment status');
     }
 
-    return prisma.shipment.create({
+    const shipment = await prisma.shipment.create({
       data: {
         orderId: dto.orderId,
         shippingMethodId: dto.shippingMethodId || null,
@@ -403,6 +404,18 @@ export class ShippingService {
       },
       include: SHIPMENT_INCLUDE,
     });
+
+    if (shipment.trackingNumber) {
+      const order = await prisma.order.findUnique({
+        where: { id: dto.orderId },
+        include: { customer: { select: { id: true, name: true, email: true } } },
+      });
+      if (order) {
+        void onShipmentUpdated(order, shipment.trackingNumber);
+      }
+    }
+
+    return shipment;
   }
 
   async updateShipment(id: string, dto: UpdateShipmentDto) {
@@ -420,7 +433,7 @@ export class ShippingService {
       throw new ApiError(400, 'Invalid shipment status');
     }
 
-    return prisma.shipment.update({
+    const shipment = await prisma.shipment.update({
       where: { id },
       data: {
         shippingMethodId: dto.shippingMethodId === undefined ? undefined : dto.shippingMethodId || null,
@@ -435,6 +448,18 @@ export class ShippingService {
       },
       include: SHIPMENT_INCLUDE,
     });
+
+    if (dto.trackingNumber && shipment.trackingNumber) {
+      const order = await prisma.order.findUnique({
+        where: { id: shipment.orderId },
+        include: { customer: { select: { id: true, name: true, email: true } } },
+      });
+      if (order) {
+        void onShipmentUpdated(order, shipment.trackingNumber);
+      }
+    }
+
+    return shipment;
   }
 
   async deleteShipment(id: string) {

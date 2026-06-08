@@ -5,25 +5,30 @@ export type { Notification } from '../types';
 
 export const notificationService = {
   async getNotifications(): Promise<Notification[]> {
-    const { data } = await api.get<{ success: boolean; data: Notification[] }>('/notifications');
-    return data.data;
+    const { data } = await api.get<{ data: Notification[] }>('/notifications', {
+      withCredentials: true,
+    });
+    return data.data ?? [];
   },
 
   async markAsRead(notificationId: string): Promise<Notification> {
-    const { data } = await api.put<{ success: boolean; data: Notification }>(
-      `/notifications/${notificationId}/read`
+    const { data } = await api.put<{ data: Notification }>(
+      `/notifications/${notificationId}/read`,
+      {},
+      { withCredentials: true }
     );
     return data.data;
   },
 
   async markAllAsRead(): Promise<void> {
-    await api.put('/notifications/read-all');
+    await api.put('/notifications/read-all', {}, { withCredentials: true });
   },
 
   async getUnreadCount(): Promise<number> {
-    const { data } = await api.get<{ success: boolean; data: { count: number } }>(
-      '/notifications/unread/count'
+    const { data } = await api.get<{ data: { count: number } }>(
+      '/notifications/unread/count',
+      { withCredentials: true }
     );
-    return data.data.count;
-  }
+    return data.data?.count ?? 0;
+  },
 }; 

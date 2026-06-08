@@ -1,0 +1,22 @@
+import { Request, Response, NextFunction } from 'express';
+import { ApiError } from '../utils/ApiError';
+import logger from '../config/logger';
+
+export const errorHandler = (
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
+  if (err instanceof ApiError) {
+    logger.warn(`ApiError ${err.statusCode}: ${err.message}`);
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      errors: err.errors.length ? err.errors : undefined,
+    });
+  }
+
+  logger.error('Unhandled Error:', err);
+  return res.status(500).json({ success: false, message: 'Something went wrong!' });
+};

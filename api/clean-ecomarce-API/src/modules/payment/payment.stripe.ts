@@ -6,7 +6,7 @@ export class StripePayment {
 
   constructor() {
     const apiKey = process.env.STRIPE_SECRET_KEY || '';
-    this.stripe = new Stripe(apiKey, { apiVersion: '2025-10-29.clover' });
+    this.stripe = new Stripe(apiKey, { apiVersion: '2025-09-30.clover' });
   }
 
   async createCheckoutSession(product: { name: string; price: number; currency?: string }) {

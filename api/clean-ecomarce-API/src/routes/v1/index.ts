@@ -10,50 +10,23 @@ import customerRoutes from '../../modules/customer/customer.route';
 import storeRoutes from '../../modules/store/store.route';
 import variantRoutes from '../../modules/variant/variant.route';
 import shippingRoutes from '../../modules/shipping/shipping.route';
-// import paymentRoutes from '../../modules/payment/infra/payment.routes';
+import notificationRoutes from '../../modules/notification/notification.route';
+import emailRoutes from '../../modules/email/email.route';
 
 const router = express.Router();
 
-// Auth routes
-// router.use('/auth', authRoutes);
-
-// Admin routes
 router.use('/admin', adminRoutes);
-
-// Dashboard routes
 router.use('/dashboard', dashboardRoutes);
-
-// Product routes
 router.use('/products', productRoutes);
-
-// Order routes
 router.use('/orders', orderRoutes);
-
-// Category routes
 router.use('/categories', categoryRoutes);
-
-// Cleanup routes
 router.use('/cleanup', cleanupRoutes);
-
-
-// Customers routes
 router.use('/customers', customerRoutes);
-
-
-//cart routes
 router.use('/cart', cartRoutes);
-
-// Public storefront API
 router.use('/store', storeRoutes);
-
-// Individual variant endpoints
 router.use('/variants', variantRoutes);
-
-// Shipping management endpoints
 router.use('/shipping', shippingRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/email', emailRoutes);
 
-
-// Payment routes
-// router.use('/payments', paymentRoutes);
-
-export default router; 
+export default router;
