@@ -31,7 +31,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 function assertAwsConfig() {
-  const required = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME'];
+  if (!process.env.AWS_BUCKET_NAME && process.env.AWS_S3_BUCKET) {
+    process.env.AWS_BUCKET_NAME = process.env.AWS_S3_BUCKET;
+  }
+  const required = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION'];
+  const bucket = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+  if (!bucket) required.push('AWS_BUCKET_NAME');
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length) {
     console.error('❌ Seeder uploads images to S3. Missing in .env:');
@@ -134,7 +139,7 @@ const s3Client = new S3Client({
   },
 });
 
-const bucketName = process.env.AWS_BUCKET_NAME;
+const bucketName = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET;
 
 async function uploadPlaceholderToS3(imageUrl) {
   const res = await fetch(imageUrl);

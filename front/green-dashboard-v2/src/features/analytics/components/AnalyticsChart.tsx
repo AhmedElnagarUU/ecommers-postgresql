@@ -1,10 +1,12 @@
 import React from 'react';
+import type { SalesDataPoint } from '../api/analytics.api';
 
 interface AnalyticsChartProps {
   loading?: boolean;
+  sales?: SalesDataPoint[];
 }
 
-export function AnalyticsChart({ loading }: AnalyticsChartProps) {
+export function AnalyticsChart({ loading, sales = [] }: AnalyticsChartProps) {
   if (loading) {
     return (
       <div className="bg-mintlify-card/20 backdrop-blur-xl rounded-2xl p-6 border border-mintlify-accent/10">
@@ -16,22 +18,34 @@ export function AnalyticsChart({ loading }: AnalyticsChartProps) {
     );
   }
 
+  const maxRevenue = Math.max(...sales.map((point) => point.revenue), 1);
+
   return (
     <div className="bg-mintlify-card/20 backdrop-blur-xl rounded-2xl p-6 border border-mintlify-accent/10">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-mintlify-text">Revenue Overview</h3>
-          <select className="bg-mintlify-hover/20 text-mintlify-text-secondary rounded-lg px-3 py-1 text-sm border border-mintlify-accent/10">
-            <option>Last 7 days</option>
-            <option>Last 30 days</option>
-            <option>Last 90 days</option>
-          </select>
-        </div>
-        
-        <div className="h-[300px] flex items-center justify-center">
-          <p className="text-mintlify-text-secondary">Chart will be implemented here</p>
-        </div>
+        <h3 className="text-lg font-semibold text-mintlify-text">Revenue (last 30 days)</h3>
+
+        {sales.length === 0 ? (
+          <div className="h-[300px] flex items-center justify-center">
+            <p className="text-mintlify-text-secondary">No sales data for this period</p>
+          </div>
+        ) : (
+          <div className="h-[300px] flex items-end gap-2 overflow-x-auto pb-2">
+            {sales.map((point) => (
+              <div key={point.date} className="flex flex-col items-center min-w-[48px] gap-2">
+                <div
+                  className="w-10 rounded-t bg-mintlify-accent/70"
+                  style={{ height: `${Math.max((point.revenue / maxRevenue) * 220, 8)}px` }}
+                  title={`$${point.revenue.toFixed(2)} · ${point.orders} orders`}
+                />
+                <span className="text-[10px] text-mintlify-text-secondary rotate-[-45deg] origin-top-left whitespace-nowrap">
+                  {point.date.slice(5)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
-} 
+}

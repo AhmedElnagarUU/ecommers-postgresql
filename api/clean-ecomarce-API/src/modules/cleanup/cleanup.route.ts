@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { CleanupController } from './cleanup.controller';
+import { isAuthenticated, isAdmin } from '../../middleware/auth.middleware';
 
 const router = Router();
 const cleanupController = new CleanupController();
+
+router.use(isAuthenticated, isAdmin);
 
 router.post('/', cleanupController.createCleanup.bind(cleanupController));
 router.get('/:id', cleanupController.getCleanupById.bind(cleanupController));

@@ -1,8 +1,9 @@
 import { prisma } from '../../config/database';
 import { ApiError } from '../../utils/ApiError';
-import logger from '../../config/logger';
 import { ProductService, PRODUCT_INCLUDE, toProductPlain } from '../product/product.service';
 import { normalizeSelections } from '../product/product.variant.utils';
+import { generateOrderNumber } from '../../utils/order-number';
+import { onOrderPlaced, onOrderStatusChanged, onPaymentStatusChanged } from '../../services/order-events.service';
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED';
 
@@ -29,11 +30,6 @@ function formatOrderItems(order: any): any {
         : undefined,
     })),
   };
-}
-
-async function generateOrderNumber(): Promise<string> {
-  const count = await prisma.order.count();
-  return `ORD${String(count + 1).padStart(6, '0')}`;
 }
 
 export class OrderService {
@@ -73,8 +69,6 @@ export class OrderService {
         price,
         selectedVariants: Object.keys(selectedVariants).length ? selectedVariants : undefined,
       });
-
-      await this.productService.decrementStock(productId, quantity, selectedVariants);
     }
 
     return preparedItems;
@@ -86,7 +80,16 @@ export class OrderService {
       const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
       const order = await prisma.$transaction(async (tx) => {
-        const orderNumber = await generateOrderNumber();
+        for (const item of items) {
+          await this.productService.decrementStock(
+            item.productId,
+            item.quantity,
+            item.selectedVariants,
+            tx
+          );
+        }
+
+        const orderNumber = await generateOrderNumber(tx);
         return await tx.order.create({
           data: {
             orderNumber,
@@ -117,7 +120,9 @@ export class OrderService {
         });
       });
 
-      return formatOrderItems(order);
+      const formatted = formatOrderItems(order);
+      void onOrderPlaced(formatted);
+      return formatted;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (error instanceof Error) throw new ApiError(400, error.message);
@@ -150,12 +155,9 @@ export class OrderService {
 
   async getAllOrders(): Promise<any[]> {
     try {
-      logger.info('Fetching all orders');
       const orders = await prisma.order.findMany({ include: ORDER_INCLUDE });
-      logger.info(`Orders fetched successfully: ${orders.length} orders`);
       return orders.map(formatOrderItems);
-    } catch (error) {
-      logger.error('Error fetching orders:', error);
+    } catch {
       throw new ApiError(500, 'Error fetching orders');
     }
   }
@@ -190,12 +192,22 @@ export class OrderService {
 
   async updateOrderStatus(id: string, status: OrderStatus): Promise<any> {
     try {
+      const existing = await prisma.order.findUnique({
+        where: { id },
+        include: ORDER_INCLUDE,
+      });
+      if (!existing) throw new ApiError(404, 'Order not found');
+
       const order = await prisma.order.update({
         where: { id },
         data: { status },
         include: ORDER_INCLUDE,
       });
-      return formatOrderItems(order);
+      const formatted = formatOrderItems(order);
+      if (existing.status !== status) {
+        void onOrderStatusChanged(formatted, existing.status, status);
+      }
+      return formatted;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error updating order status');
@@ -209,7 +221,9 @@ export class OrderService {
         data: { paymentStatus: status },
         include: ORDER_INCLUDE,
       });
-      return formatOrderItems(order);
+      const formatted = formatOrderItems(order);
+      void onPaymentStatusChanged(formatted, status);
+      return formatted;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(500, 'Error updating payment status');

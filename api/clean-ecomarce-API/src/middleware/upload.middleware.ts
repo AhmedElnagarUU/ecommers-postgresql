@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import multer from 'multer';
-import { s3Client, bucketName } from '../config/s3.config';
+import { getS3Client, getBucketName } from '../config/s3.config';
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -52,15 +52,18 @@ export const uploadToS3 = async (
   const fileName = generateUniqueFileName(originalName);
   const key = `${folder}/${fileName}`;
 
+  const bucket = getBucketName();
+  if (!bucket) throw new Error('AWS bucket is not configured');
+
   const command = new PutObjectCommand({
-    Bucket: bucketName,
+    Bucket: bucket,
     Key: key,
     Body: buffer,
     ContentType: mimeType,
   });
 
   try {
-    await s3Client.send(command);
+    await getS3Client().send(command);
     return key;
   } catch (error) {
     console.error('Error uploading to S3:', error);
@@ -71,12 +74,15 @@ export const uploadToS3 = async (
 // Function to get a signed URL for an uploaded file
 export const getSignedFileUrl = async (key: string): Promise<string> => {
   try {
+    const bucket = getBucketName();
+    if (!bucket) throw new Error('AWS bucket is not configured');
+
     const command = new GetObjectCommand({
-      Bucket: bucketName,
+      Bucket: bucket,
       Key: key,
     });
     
-    const url = await getSignedUrl(s3Client, command, { 
+    const url = await getSignedUrl(getS3Client(), command, { 
       expiresIn: 3600 // URL expires in 1 hour
     });
     
@@ -121,12 +127,15 @@ export const deleteFromS3 = async (key: string, retryCount = 3): Promise<boolean
   let attempts = 0;
   while (attempts < retryCount) {
     try {
+      const bucket = getBucketName();
+      if (!bucket) throw new Error('AWS bucket is not configured');
+
       const command = new DeleteObjectCommand({
-        Bucket: bucketName,
+        Bucket: bucket,
         Key: key,
       });
       
-      await s3Client.send(command);
+      await getS3Client().send(command);
       return true; // Successful deletion
     } catch (error: any) {
       attempts++;

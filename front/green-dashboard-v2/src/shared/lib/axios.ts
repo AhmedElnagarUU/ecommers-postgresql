@@ -7,8 +7,6 @@ import authService from '@/features/auth/api/auth.api';
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-console.log('API URL:', baseURL); // Debug log
-
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
   skipAuthRefresh?: boolean;

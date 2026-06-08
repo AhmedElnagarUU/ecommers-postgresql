@@ -1,26 +1,12 @@
 import React from 'react';
-import { ArrowUp, ArrowDown } from 'lucide-react';
-
-interface AnalyticsData {
-  page: string;
-  visitors: number;
-  percentage: number;
-  trend: 'up' | 'down';
-}
-
-const sampleData: AnalyticsData[] = [
-  { page: '/dashboard', visitors: 2345, percentage: 12.5, trend: 'up' },
-  { page: '/products', visitors: 1876, percentage: -2.3, trend: 'down' },
-  { page: '/orders', visitors: 1567, percentage: 8.7, trend: 'up' },
-  { page: '/customers', visitors: 1234, percentage: 5.2, trend: 'up' },
-  { page: '/analytics', visitors: 987, percentage: -1.5, trend: 'down' },
-];
+import type { DashboardStats } from '@/features/dashboard/types';
 
 interface AnalyticsTableProps {
   loading?: boolean;
+  products?: DashboardStats['topProducts'];
 }
 
-export function AnalyticsTable({ loading }: AnalyticsTableProps) {
+export function AnalyticsTable({ loading, products = [] }: AnalyticsTableProps) {
   if (loading) {
     return (
       <div className="bg-mintlify-card/20 backdrop-blur-xl rounded-2xl border border-mintlify-accent/10">
@@ -42,49 +28,39 @@ export function AnalyticsTable({ loading }: AnalyticsTableProps) {
 
   return (
     <div className="bg-mintlify-card/20 backdrop-blur-xl rounded-2xl border border-mintlify-accent/10">
+      <div className="px-6 py-4 border-b border-mintlify-accent/10">
+        <h3 className="text-lg font-semibold text-mintlify-text">Top Products</h3>
+      </div>
       <div className="relative overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-mintlify-accent/10">
-              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">
-                Page
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">
-                Visitors
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">
-                Change
-              </th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">Product</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">Units Sold</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-mintlify-text-secondary">Revenue</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-mintlify-accent/10">
-            {sampleData.map((item) => (
-              <tr key={item.page} className="hover:bg-mintlify-hover/20">
-                <td className="px-6 py-4 text-sm font-medium text-mintlify-text">
-                  {item.page}
-                </td>
-                <td className="px-6 py-4 text-sm text-mintlify-text-secondary">
-                  {item.visitors.toLocaleString()}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-1">
-                    {item.trend === 'up' ? (
-                      <ArrowUp className="w-4 h-4 text-mintlify-accent" />
-                    ) : (
-                      <ArrowDown className="w-4 h-4 text-red-400" />
-                    )}
-                    <span className={`text-sm font-medium ${
-                      item.trend === 'up' ? 'text-mintlify-accent' : 'text-red-400'
-                    }`}>
-                      {Math.abs(item.percentage)}%
-                    </span>
-                  </div>
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="px-6 py-8 text-center text-mintlify-text-secondary">
+                  No product sales yet
                 </td>
               </tr>
-            ))}
+            ) : (
+              products.map((item) => (
+                <tr key={item.id} className="hover:bg-mintlify-hover/20">
+                  <td className="px-6 py-4 text-sm font-medium text-mintlify-text">{item.name}</td>
+                  <td className="px-6 py-4 text-sm text-mintlify-text-secondary">{item.sales}</td>
+                  <td className="px-6 py-4 text-sm text-mintlify-text-secondary">
+                    ${item.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
     </div>
   );
-} 
+}

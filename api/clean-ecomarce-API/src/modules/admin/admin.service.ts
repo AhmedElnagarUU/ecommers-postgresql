@@ -9,7 +9,11 @@ export class AdminService {
   }
 
   async registerAdmin(adminData: any): Promise<any> {
-    if (!adminData.permissions) {
+    const hasSuperAdmin = await this.hasSuperAdmin();
+    if (!hasSuperAdmin) {
+      adminData.role = AdminRole.SUPER_ADMIN;
+      adminData.permissions = ['all'];
+    } else if (!adminData.permissions) {
       adminData.permissions = adminData.role === AdminRole.SUPER_ADMIN
         ? ['all']
         : ['read', 'write'];

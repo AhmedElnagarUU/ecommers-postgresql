@@ -78,10 +78,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       try {
         setIsLoading(true);
         const isAuthed = await authService.validateAuth();
-        console.log('isAuthed', isAuthed);
         if (!isAuthed) {
-          console.log('redirecting to login');
-          // Use replace instead of push to ensure redirect
           router.push('/login');
           return;
         }

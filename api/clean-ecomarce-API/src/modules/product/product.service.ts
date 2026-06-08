@@ -111,9 +111,11 @@ export class ProductService {
   async decrementStock(
     productId: string,
     quantity: number,
-    selectedVariants?: Record<string, string>
+    selectedVariants?: Record<string, string>,
+    tx?: Pick<typeof prisma, 'product' | 'productVariantCombination'>
   ): Promise<void> {
-    const product = await prisma.product.findUnique({
+    const db = tx ?? prisma;
+    const product = await db.product.findUnique({
       where: { id: productId },
       include: {
         variantCombinations: {
@@ -140,7 +142,7 @@ export class ProductService {
 
       if (!dbCombo) throw new Error('Variant combination not found in DB');
 
-      await prisma.productVariantCombination.update({
+      await db.productVariantCombination.update({
         where: { id: dbCombo.id },
         data: { stock: (combo.stock ?? 0) - quantity },
       });
@@ -149,7 +151,7 @@ export class ProductService {
 
     const newStock = (product.stock || 0) - quantity;
     if (newStock < 0) throw new Error('Insufficient stock');
-    await prisma.product.update({ where: { id: productId }, data: { stock: newStock } });
+    await db.product.update({ where: { id: productId }, data: { stock: newStock } });
   }
 
   // ── Variant DB write helpers ──────────────────────────────────────────────

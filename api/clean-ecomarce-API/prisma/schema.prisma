@@ -64,6 +64,13 @@ enum NotificationPriority {
   HIGH
 }
 
+enum AdminNotificationType {
+  ORDER_PLACED
+  ORDER_STATUS_CHANGED
+  SHIPPING_STATUS_CHANGED
+  GENERAL
+}
+
 enum ShipmentStatus {
   PENDING
   SHIPPED
@@ -415,4 +422,22 @@ model Notification {
   @@index([customerId])
   @@index([status])
   @@index([type])
+}
+
+// ─── Admin notifications (dashboard) ─────────────────────────────────────────
+
+model AdminNotification {
+  id        String                @id @default(cuid())
+  type      AdminNotificationType
+  title     String
+  message   String
+  status    NotificationStatus    @default(UNREAD)
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
 }

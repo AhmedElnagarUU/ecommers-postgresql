@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-
 import { AdminRole } from '../modules/admin/admin.model';
 
-// Extend Express Request type to include admin information
 declare global {
   namespace Express {
     interface Request {
@@ -15,35 +13,39 @@ declare global {
   }
 }
 
+function getSessionAdmin(req: Request): { id: string; role: string; permissions?: string[] } | null {
+  if (!req.isAuthenticated?.() || !req.user) return null;
+  return req.user as { id: string; role: string; permissions?: string[] };
+}
+
 export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  try {
-   
-    next();
-  } catch (error) {
+  if (!req.isAuthenticated?.()) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid or expired token'
+      message: 'Invalid or expired token',
     });
   }
+  next();
 };
 
 export const authorize = (...roles: AdminRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.admin) {
+    const admin = getSessionAdmin(req);
+    if (!admin) {
       return res.status(401).json({
         success: false,
-        message: 'Not authenticated'
+        message: 'Not authenticated',
       });
     }
 
-    if (!roles.includes(req.admin.role as AdminRole)) {
+    if (!roles.includes(admin.role as AdminRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to access this resource'
+        message: 'Not authorized to access this resource',
       });
     }
 
@@ -53,49 +55,59 @@ export const authorize = (...roles: AdminRole[]) => {
 
 export const requirePermission = (...requiredPermissions: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.admin) {
+    const admin = getSessionAdmin(req);
+    if (!admin) {
       return res.status(401).json({
         success: false,
-        message: 'Not authenticated'
+        message: 'Not authenticated',
       });
     }
 
-    const hasAllPermissions = requiredPermissions.every(permission => 
-      req.admin?.permissions.includes('all') || 
-      req.admin?.permissions.includes(permission)
+    const permissions = admin.permissions ?? [];
+    const hasAllPermissions = requiredPermissions.every(
+      (permission) => permissions.includes('all') || permissions.includes(permission)
     );
 
     if (!hasAllPermissions) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions'
+        message: 'Insufficient permissions',
       });
     }
 
     next();
   };
-}; 
+};
 
 export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  console.log('isAuthenticated')
-  console.log(req.isAuthenticated())
-  if (!req.isAuthenticated()) {
+  if (!req.isAuthenticated?.()) {
     return res.status(401).json({ message: 'Unauthorized - Please login' });
   }
   next();
 };
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (false) {
+  const admin = getSessionAdmin(req);
+  if (!admin) {
+    return res.status(401).json({ message: 'Unauthorized - Please login' });
+  }
+
+  if (admin.role !== AdminRole.ADMIN && admin.role !== AdminRole.SUPER_ADMIN) {
     return res.status(403).json({ message: 'Forbidden - Admin access required' });
   }
+
   next();
 };
 
 export const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user || (req.user as { role: string }).role !== 'superadmin') {
+  const admin = getSessionAdmin(req);
+  if (!admin) {
+    return res.status(401).json({ message: 'Unauthorized - Please login' });
+  }
+
+  if (admin.role !== AdminRole.SUPER_ADMIN) {
     return res.status(403).json({ message: 'Forbidden - Super Admin access required' });
   }
+
   next();
 };
-
